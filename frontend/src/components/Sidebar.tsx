@@ -287,7 +287,9 @@ export default function Sidebar() {
                 style={{
                     width: collapsed ? '76px' : '260px',
                     minHeight: '100vh',
-                    background: 'rgba(15, 15, 40, 0.95)',
+                    background: 'rgba(15, 15, 40, 0.15)', // Highly transparent for glass effect
+                    backdropFilter: 'blur(20px)', // Glassmorphism blur
+                    WebkitBackdropFilter: 'blur(20px)',
                     borderRight: '1px solid var(--border-glass)',
                     display: 'flex',
                     flexDirection: 'column',

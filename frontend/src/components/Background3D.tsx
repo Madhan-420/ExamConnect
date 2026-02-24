@@ -234,48 +234,11 @@ function AvatarWrapper({ theme }: { theme: 'male' | 'female' | 'default' }) {
     return <AbstractAvatar theme={theme} />;
 }
 
-// --- Main Background Component ---
-
-function SketchfabBackground({ url }: { url: string }) {
-    return (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: -10 }}>
-            <div className="sketchfab-embed-wrapper" style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}>
-                <iframe
-                    title="Sketchfab Avatar"
-                    frameBorder="0"
-                    allowFullScreen
-                    // @ts-ignore
-                    mozallowfullscreen="true"
-                    // @ts-ignore
-                    webkitallowfullscreen="true"
-                    allow="autoplay; fullscreen; xr-spatial-tracking"
-                    xr-spatial-tracking="true"
-                    execution-while-out-of-viewport="true"
-                    execution-while-not-rendered="true"
-                    web-share="true"
-                    src={`${url}?autostart=1&ui_theme=dark&dnt=1`}
-                    style={{ width: '100%', height: '100%', border: 'none' }}
-                ></iframe>
-            </div>
-
-            {/* Overlay to blend the iframe slightly into our dark theme and prevent it from stealing all clicks */}
-            <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(9, 9, 11, 0.4)', pointerEvents: 'none' }} />
-        </div>
-    );
-}
-
 export default function Background3D() {
     const { theme } = useTheme();
 
-    const maleEmbedUrl = "https://sketchfab.com/models/bb133bdbd15b4621a40dd9394fae83c2/embed";
-    const femaleEmbedUrl = "https://sketchfab.com/models/7a2ec205f46448168b1c667e13cc1ff0/embed";
-
     return (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: -10, pointerEvents: 'none' }}>
-            {/* Render the Sketchfab embed underneath the Canvas depending on theme, allowing pointer events */}
-            {theme === 'male' && <div style={{ pointerEvents: 'auto' }}><SketchfabBackground url={maleEmbedUrl} /></div>}
-            {theme === 'female' && <div style={{ pointerEvents: 'auto' }}><SketchfabBackground url={femaleEmbedUrl} /></div>}
-
             <Canvas camera={{ position: [0, 0, 5], fov: 60 }} dpr={[1, 2]}>
                 <ambientLight intensity={0.4} />
                 <directionalLight position={[10, 10, 5]} intensity={1.5} />
@@ -286,9 +249,8 @@ export default function Background3D() {
                 {theme === 'male' && <MaleElements />}
                 {theme === 'default' && <DefaultElements />}
 
-                {/* We only render the central React Three Fiber avatar wrapper if it's the default theme, since male/female use Sketchfab now */}
-                {theme === 'default' && <AvatarWrapper theme={theme} />}
-
+                {/* Render the local GLB avatar or fallback for all themes to enable mouse tracking */}
+                <AvatarWrapper theme={theme} />
             </Canvas>
         </div>
     );

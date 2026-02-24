@@ -11,172 +11,61 @@ import * as THREE from 'three'; // Import THREE for MathUtils
 // Initialize Gemini API (Uses an environment variable if available, otherwise it will fallback to a hardcoded demo response if the variable is missing to prevent crashing)
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || "dummy_key");
 
-// Enhanced 3D composition with "Glassmorphism" floating elements
-function AbstractAIAvatar({ gender }: { gender: string }) {
-    const groupRef = useRef<any>(null);
-    const { mouse, viewport } = useThree();
-
-    const color = gender === 'female' ? '#ec4899' : '#8b5cf6'; // Pink for girl, Purple for boy
-    const accent = gender === 'female' ? '#fb7185' : '#a78bfa';
-
-    useFrame(() => {
-        if (!groupRef.current) return;
-
-        // Modal avatar traces the user's mouse position
-        const targetX = (mouse.x * viewport.width) / 5;
-        const targetY = (mouse.y * viewport.height) / 5;
-
-        // Smoothly rotate the group towards the target
-        groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetX, 0.1);
-        groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, -targetY, 0.1);
-    });
-
-    return (
-        <group ref={groupRef}>
-            {/* Main Center Avatar (Abstractized beautifully) */}
-            <Float speed={2} rotationIntensity={0.5} floatIntensity={1}>
-                <mesh position={[0, 0.5, 0]}>
-                    <capsuleGeometry args={[0.4, 1.2, 32, 32]} />
-                    <meshPhysicalMaterial
-                        color={color}
-                        roughness={0.1}
-                        metalness={0.8}
-                        clearcoat={1}
-                        transmission={0.5}
-                        thickness={1}
-                    />
-                </mesh>
-                <mesh position={[0, 1.7, 0]}>
-                    <sphereGeometry args={[0.35, 32, 32]} />
-                    <meshPhysicalMaterial
-                        color={color}
-                        roughness={0.2}
-                        metalness={0.6}
-                        clearcoat={1}
-                    />
-                </mesh>
-
-                {/* Glowing Core / Eyes (To show cursor tracking) */}
-                <group position={[0, 1.7, 0.35]}>
-                    <mesh position={[-0.15, 0.05, 0]}>
-                        <sphereGeometry args={[0.08, 16, 16]} />
-                        <meshBasicMaterial color="white" />
-                    </mesh>
-                    <mesh position={[0.15, 0.05, 0]}>
-                        <sphereGeometry args={[0.08, 16, 16]} />
-                        <meshBasicMaterial color="white" />
-                    </mesh>
-                </group>
-
-                {/* Gender Specific Identifiers */}
-                {gender === 'female' && (
-                    <mesh position={[0, 2.1, -0.1]} rotation={[-0.2, 0, 0]}>
-                        <torusGeometry args={[0.25, 0.04, 16, 32]} />
-                        <meshStandardMaterial color="#fcd34d" emissive="#fcd34d" emissiveIntensity={1} />
-                    </mesh>
-                )}
-                {gender === 'male' && (
-                    <group position={[0, 1.7, 0]}>
-                        <mesh position={[-0.4, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
-                            <cylinderGeometry args={[0.1, 0.1, 0.08, 16]} />
-                            <meshStandardMaterial color="white" />
-                        </mesh>
-                        <mesh position={[0.4, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
-                            <cylinderGeometry args={[0.1, 0.1, 0.08, 16]} />
-                            <meshStandardMaterial color="white" />
-                        </mesh>
-                    </group>
-                )}
-            </Float>
-
-            {/* Glowing Orbs around */}
-            <Float speed={3} rotationIntensity={2} floatIntensity={3}>
-                <Sphere args={[0.2, 32, 32]} position={[1.2, 0, 1]}>
-                    <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={2} toneMapped={false} />
-                </Sphere>
-            </Float>
-            <Float speed={2} rotationIntensity={1} floatIntensity={2}>
-                <Sphere args={[0.15, 32, 32]} position={[-1.2, 2, -1]}>
-                    <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.5} toneMapped={false} />
-                </Sphere>
-            </Float>
-
-            {/* Distorted Background Element */}
-            <mesh position={[0, 1, -2]} scale={1.8}>
-                <sphereGeometry args={[1, 64, 64]} />
-                <MeshDistortMaterial color={color} distort={0.3} speed={2} roughness={0.2} metalness={0.8} opacity={0.15} transparent />
-            </mesh>
-        </group>
-    );
-}
-
-function GLTFAIAvatar({ url, scale = 2, position = [0, -1, 0] }: { url: string, scale?: number, position?: [number, number, number] }) {
-    const groupRef = useRef<THREE.Group>(null);
-    const { scene, animations } = useGLTF(url);
-    const { actions } = useAnimations(animations, groupRef);
-    const { mouse, viewport } = useThree();
-
-    useEffect(() => {
-        if (actions && Object.keys(actions).length > 0) {
-            const firstActionKey = Object.keys(actions)[0];
-            actions[firstActionKey]?.play();
-        }
-    }, [actions]);
+// 3D Globe Visualizer that reacts to the AI's processing state
+function GlobeVisualizer({ gender, isLoading }: { gender: 'male' | 'female', isLoading: boolean }) {
+    const color = gender === 'female' ? '#ec4899' : '#8b5cf6';
+    const meshRef = useRef<THREE.Mesh>(null);
+    const ringRef = useRef<THREE.Mesh>(null);
 
     useFrame((state) => {
-        if (!groupRef.current) return;
-        const targetX = (mouse.x * viewport.width) / 5;
-        const targetY = (mouse.y * viewport.height) / 5;
-        groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetX, 0.1);
-        groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, -targetY, 0.1);
+        if (!meshRef.current || !ringRef.current) return;
+        // Slowly rotate the globe
+        meshRef.current.rotation.x = state.clock.elapsedTime * (isLoading ? 0.5 : 0.2);
+        meshRef.current.rotation.y = state.clock.elapsedTime * (isLoading ? 0.8 : 0.3);
 
-        if (!animations || animations.length === 0) {
-            groupRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 2) * 0.05;
-        }
+        // Spin the orbital ring
+        ringRef.current.rotation.z = state.clock.elapsedTime * (isLoading ? 2 : 0.5);
     });
 
     return (
-        <group ref={groupRef} position={position} scale={scale}>
-            <primitive object={scene} />
+        <group position={[0, -0.5, 0]}>
+            <Float speed={isLoading ? 5 : 2} rotationIntensity={isLoading ? 3 : 1} floatIntensity={isLoading ? 3 : 1}>
+                {/* Outer Distorted Energy Mesh */}
+                <mesh ref={meshRef}>
+                    <sphereGeometry args={[1.6, 64, 64]} />
+                    <MeshDistortMaterial
+                        color={color}
+                        emissive={color}
+                        emissiveIntensity={isLoading ? 1.5 : 0.4}
+                        distort={isLoading ? 0.7 : 0.3}
+                        speed={isLoading ? 5 : 2}
+                        roughness={0.2}
+                        metalness={0.8}
+                        wireframe={isLoading}
+                        transparent
+                        opacity={0.8}
+                    />
+                </mesh>
+
+                {/* Inner Solid Core */}
+                <mesh scale={0.85}>
+                    <sphereGeometry args={[1.5, 32, 32]} />
+                    <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.6} roughness={0.4} metalness={0.9} />
+                </mesh>
+
+                {/* Orbital Tech Ring */}
+                <mesh ref={ringRef} rotation={[Math.PI / 2.5, 0, 0]}>
+                    <torusGeometry args={[2.4, 0.015, 16, 100]} />
+                    <meshBasicMaterial color="white" transparent opacity={isLoading ? 0.8 : 0.3} />
+                </mesh>
+                <mesh rotation={[-Math.PI / 2.5, 0, 0]}>
+                    <torusGeometry args={[2.4, 0.015, 16, 100]} />
+                    <meshBasicMaterial color={color} transparent opacity={isLoading ? 0.8 : 0.3} />
+                </mesh>
+            </Float>
         </group>
     );
 }
-
-function SketchfabAIAvatar({ url }: { url: string }) {
-    return (
-        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 10 }}>
-            <div className="sketchfab-embed-wrapper" style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}>
-                <iframe
-                    title="Sketchfab AI Avatar"
-                    frameBorder="0"
-                    allowFullScreen
-                    // @ts-ignore
-                    mozallowfullscreen="true"
-                    // @ts-ignore
-                    webkitallowfullscreen="true"
-                    allow="autoplay; fullscreen; xr-spatial-tracking"
-                    xr-spatial-tracking="true"
-                    execution-while-out-of-viewport="true"
-                    execution-while-not-rendered="true"
-                    web-share="true"
-                    src={`${url}?autostart=1&ui_theme=dark&dnt=1`}
-                    style={{ width: '100%', height: '100%', border: 'none' }}
-                ></iframe>
-            </div>
-
-            {/* Overlay to blend the iframe slightly into the modal theme and allow clicking the chat but not spinning the model accidentally while scrolling */}
-            <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(15, 15, 25, 0.2)', pointerEvents: 'none' }} />
-
-            {/* Gradient fade to integrate canvas with chat area */}
-            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 80, background: 'linear-gradient(to top, rgba(15,15,25,0.9), transparent)' }} />
-        </div>
-    );
-}
-
-function AIAvatarWrapper() {
-    return null; // Deprecated, we no longer use local GLB models for the AI Assistant.
-}
-
 export default function AIAssistant({ gender }: { gender: 'male' | 'female' }) {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<{ role: string, content: string }[]>([
@@ -232,11 +121,6 @@ export default function AIAssistant({ gender }: { gender: 'male' | 'female' }) {
 
     const themeColor = gender === 'female' ? 'rgba(236, 72, 153, 0.4)' : 'rgba(139, 92, 246, 0.4)';
     const glowColor = gender === 'female' ? '#ec4899' : '#8b5cf6';
-
-    // Define the correct Sketchfab URL based on gender
-    const sketchfabUrl = gender === 'male'
-        ? "https://sketchfab.com/models/bb133bdbd15b4621a40dd9394fae83c2/embed"
-        : "https://sketchfab.com/models/7a2ec205f46448168b1c667e13cc1ff0/embed";
 
     return (
         <>
@@ -300,20 +184,22 @@ export default function AIAssistant({ gender }: { gender: 'male' | 'female' }) {
 
                         {/* 3D Canvas Area */}
                         {/* Gave this a lower zIndex and placed it absolute so it acts as a true background without messing up chat flow */}
-                        <div style={{ position: 'absolute', top: 60, left: 0, right: 0, height: 280, zIndex: 1 }}>
+                        <div style={{ position: 'absolute', top: 60, left: 0, right: 0, height: 280, zIndex: 1, pointerEvents: 'none' }}>
 
-                            {/* Sketchfab embed representing the AI character */}
-                            <SketchfabAIAvatar url={sketchfabUrl} />
+                            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 200, height: 200, background: glowColor, filter: 'blur(80px)', opacity: 0.15, borderRadius: '50%', zIndex: -1 }} />
 
-                            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 200, height: 200, background: glowColor, filter: 'blur(80px)', opacity: 0.2, borderRadius: '50%', zIndex: -1 }} />
+                            <Canvas camera={{ position: [0, 0, 7], fov: 45 }} style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
+                                <ambientLight intensity={0.8} />
+                                <spotLight position={[10, 10, 10]} angle={0.3} penumbra={1} intensity={2} castShadow color={glowColor} />
+                                <Environment preset="city" />
 
-                            {/* Empty canvas just for the glowing floor effect underneath the iframe */}
-                            <Canvas style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 2 }}>
-                                <ContactShadows position={[0, -1.5, 0]} opacity={0.6} scale={10} blur={2.5} far={4} color={glowColor} />
+                                <GlobeVisualizer gender={gender} isLoading={isLoading} />
+
+                                <ContactShadows position={[0, -2.5, 0]} opacity={0.7} scale={15} blur={2.5} far={4} color={glowColor} />
                             </Canvas>
 
                             {/* Gradient fade to integrate canvas with chat area */}
-                            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 80, background: 'linear-gradient(to top, rgba(15,15,25,0.9), transparent)', zIndex: 2 }} />
+                            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 80, background: 'linear-gradient(to top, rgba(15,15,25,0.95), transparent)', zIndex: 3 }} />
                         </div>
 
                         {/* Spacer for absolute Canvas */}
