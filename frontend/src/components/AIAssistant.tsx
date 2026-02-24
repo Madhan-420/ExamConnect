@@ -142,22 +142,63 @@ function GLTFAIAvatar({ url, scale = 2, position = [0, -1, 0] }: { url: string, 
     );
 }
 
+function SketchfabAIAvatar() {
+    return (
+        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 10 }}>
+            <div className="sketchfab-embed-wrapper" style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}>
+                <iframe
+                    title="Gojo Curse Technique: RED"
+                    frameBorder="0"
+                    allowFullScreen
+                    // @ts-ignore
+                    mozallowfullscreen="true"
+                    // @ts-ignore
+                    webkitallowfullscreen="true"
+                    allow="autoplay; fullscreen; xr-spatial-tracking"
+                    xr-spatial-tracking="true"
+                    execution-while-out-of-viewport="true"
+                    execution-while-not-rendered="true"
+                    web-share="true"
+                    src="https://sketchfab.com/models/bb133bdbd15b4621a40dd9394fae83c2/embed?autostart=1&ui_theme=dark&dnt=1"
+                    style={{ width: '100%', height: '100%', border: 'none' }}
+                ></iframe>
+            </div>
+
+            {/* Overlay to blend the iframe slightly into the modal theme and allow clicking the chat but not spinning the model accidentally while scrolling */}
+            <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(15, 15, 25, 0.2)', pointerEvents: 'none' }} />
+
+            {/* Gradient fade to integrate canvas with chat area */}
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 80, background: 'linear-gradient(to top, rgba(15,15,25,0.9), transparent)' }} />
+        </div>
+    );
+}
+
 function AIAvatarWrapper({ gender }: { gender: string }) {
     const [modelExists, setModelExists] = useState<boolean | null>(null);
-    const url = gender === 'male' ? '/toji.glb' : '/girl.glb';
+    const url = '/girl.glb'; // We only check for girl.glb now since male is hardcoded to Sketchfab
 
     useEffect(() => {
+        if (gender === 'male') {
+            setModelExists(false); // Skip fetch check for male, use sketchfab
+            return;
+        }
+
         fetch(url)
             .then(res => setModelExists(res.ok))
             .catch(() => setModelExists(false));
-    }, [url]);
+    }, [gender, url]);
+
+    // If male, we don't use React Three Fiber at all for the central avatar, we use the HTML iframe
+    if (gender === 'male') {
+        return null; // The iframe is rendered OUTSIDE the Canvas
+    }
 
     if (modelExists === null) return null;
 
     if (modelExists) {
         return (
             <Suspense fallback={<AbstractAIAvatar gender={gender} />}>
-                <GLTFAIAvatar url={url} scale={gender === 'male' ? 1.5 : 1.3} position={[0, -1.8, 0]} />
+                <GLTFAIAvatar url={url} scale={1.3} position={[0, -1.8, 0]} />
             </Suspense>
         );
     }
@@ -284,14 +325,23 @@ export default function AIAssistant({ gender }: { gender: 'male' | 'female' }) {
                         {/* 3D Canvas Area */}
                         {/* Gave this a lower zIndex and placed it absolute so it acts as a true background without messing up chat flow */}
                         <div style={{ position: 'absolute', top: 60, left: 0, right: 0, height: 280, zIndex: 1 }}>
-                            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 200, height: 200, background: glowColor, filter: 'blur(80px)', opacity: 0.2, borderRadius: '50%' }} />
 
-                            <Canvas camera={{ position: [0, 1.5, 5], fov: 45 }}>
+                            {/* Sketchfab embed takes over if gender is male */}
+                            {gender === 'male' && <SketchfabAIAvatar />}
+
+                            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 200, height: 200, background: glowColor, filter: 'blur(80px)', opacity: 0.2, borderRadius: '50%', zIndex: -1 }} />
+
+                            <Canvas camera={{ position: [0, 1.5, 5], fov: 45 }} style={{ pointerEvents: gender === 'male' ? 'none' : 'auto' }}>
                                 <ambientLight intensity={0.8} />
                                 <spotLight position={[10, 10, 10]} angle={0.3} penumbra={1} intensity={1.5} castShadow />
                                 <Environment preset="city" />
                                 <AIAvatarWrapper gender={gender} />
-                                <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={1} maxPolarAngle={Math.PI / 2 + 0.1} minPolarAngle={Math.PI / 2 - 0.5} />
+
+                                {/* Only allow OrbitControls if we aren't using Sketchfab, otherwise it interferes with iframe rotation */}
+                                {gender !== 'male' && (
+                                    <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={1} maxPolarAngle={Math.PI / 2 + 0.1} minPolarAngle={Math.PI / 2 - 0.5} />
+                                )}
+
                                 <ContactShadows position={[0, -0.6, 0]} opacity={0.6} scale={10} blur={2.5} far={4} color={glowColor} />
                             </Canvas>
 

@@ -236,11 +236,42 @@ function AvatarWrapper({ theme }: { theme: 'male' | 'female' | 'default' }) {
 
 // --- Main Background Component ---
 
+function SketchfabBackground() {
+    return (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: -10 }}>
+            <div className="sketchfab-embed-wrapper" style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}>
+                <iframe
+                    title="Gojo Curse Technique: RED"
+                    frameBorder="0"
+                    allowFullScreen
+                    // @ts-ignore
+                    mozallowfullscreen="true"
+                    // @ts-ignore
+                    webkitallowfullscreen="true"
+                    allow="autoplay; fullscreen; xr-spatial-tracking"
+                    xr-spatial-tracking="true"
+                    execution-while-out-of-viewport="true"
+                    execution-while-not-rendered="true"
+                    web-share="true"
+                    src="https://sketchfab.com/models/bb133bdbd15b4621a40dd9394fae83c2/embed?autostart=1&ui_theme=dark&dnt=1"
+                    style={{ width: '100%', height: '100%', border: 'none' }}
+                ></iframe>
+            </div>
+
+            {/* Overlay to blend the iframe slightly into our dark theme and prevent it from stealing all clicks */}
+            <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(9, 9, 11, 0.4)', pointerEvents: 'none' }} />
+        </div>
+    );
+}
+
 export default function Background3D() {
     const { theme } = useTheme();
 
     return (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: -10, pointerEvents: 'none' }}>
+            {/* Render the Sketchfab embed underneath the Canvas if male, allowing pointer events so they can rotate it */}
+            {theme === 'male' && <div style={{ pointerEvents: 'auto' }}><SketchfabBackground /></div>}
+
             <Canvas camera={{ position: [0, 0, 5], fov: 60 }} dpr={[1, 2]}>
                 <ambientLight intensity={0.4} />
                 <directionalLight position={[10, 10, 5]} intensity={1.5} />
@@ -251,8 +282,8 @@ export default function Background3D() {
                 {theme === 'male' && <MaleElements />}
                 {theme === 'default' && <DefaultElements />}
 
-                {/* Shared central avatar wrapper that attempts to load custom GLTF models first */}
-                <AvatarWrapper theme={theme} />
+                {/* We only render the central React Three Fiber avatar wrapper if it's NOT the male theme, since male uses Sketchfab now */}
+                {theme !== 'male' && <AvatarWrapper theme={theme} />}
 
             </Canvas>
         </div>
