@@ -1,29 +1,38 @@
 'use client';
 
 import React, { useRef, useState, useEffect } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Environment, ContactShadows, Float, Sphere, MeshDistortMaterial } from '@react-three/drei';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, MessageSquare, X, Sparkles } from 'lucide-react';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import * as THREE from 'three'; // Import THREE for MathUtils
 
 // Initialize Gemini API (Uses an environment variable if available, otherwise it will fallback to a hardcoded demo response if the variable is missing to prevent crashing)
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || "dummy_key");
 
 // Enhanced 3D composition with "Glassmorphism" floating elements
 function AestheticModel({ gender }: { gender: string }) {
-    const meshRef = useRef<any>(null);
+    const groupRef = useRef<any>(null);
+    const { mouse, viewport } = useThree();
+
     const color = gender === 'female' ? '#ec4899' : '#8b5cf6'; // Pink for girl, Purple for boy
     const accent = gender === 'female' ? '#fb7185' : '#a78bfa';
 
-    useFrame((state) => {
-        if (meshRef.current) {
-            meshRef.current.rotation.y += 0.005;
-        }
+    useFrame(() => {
+        if (!groupRef.current) return;
+
+        // Modal avatar traces the user's mouse position
+        const targetX = (mouse.x * viewport.width) / 5;
+        const targetY = (mouse.y * viewport.height) / 5;
+
+        // Smoothly rotate the group towards the target
+        groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetX, 0.1);
+        groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, -targetY, 0.1);
     });
 
     return (
-        <group ref={meshRef}>
+        <group ref={groupRef}>
             {/* Main Center Avatar (Abstractized beautifully) */}
             <Float speed={2} rotationIntensity={0.5} floatIntensity={1}>
                 <mesh position={[0, 0.5, 0]}>
@@ -47,11 +56,37 @@ function AestheticModel({ gender }: { gender: string }) {
                     />
                 </mesh>
 
-                {/* Glowing Core / Eyes */}
-                <mesh position={[0, 1.7, 0.3]}>
-                    <boxGeometry args={[0.4, 0.1, 0.1]} />
-                    <meshBasicMaterial color="white" />
-                </mesh>
+                {/* Glowing Core / Eyes (To show cursor tracking) */}
+                <group position={[0, 1.7, 0.35]}>
+                    <mesh position={[-0.15, 0.05, 0]}>
+                        <sphereGeometry args={[0.08, 16, 16]} />
+                        <meshBasicMaterial color="white" />
+                    </mesh>
+                    <mesh position={[0.15, 0.05, 0]}>
+                        <sphereGeometry args={[0.08, 16, 16]} />
+                        <meshBasicMaterial color="white" />
+                    </mesh>
+                </group>
+
+                {/* Gender Specific Identifiers */}
+                {gender === 'female' && (
+                    <mesh position={[0, 2.1, -0.1]} rotation={[-0.2, 0, 0]}>
+                        <torusGeometry args={[0.25, 0.04, 16, 32]} />
+                        <meshStandardMaterial color="#fcd34d" emissive="#fcd34d" emissiveIntensity={1} />
+                    </mesh>
+                )}
+                {gender === 'male' && (
+                    <group position={[0, 1.7, 0]}>
+                        <mesh position={[-0.4, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
+                            <cylinderGeometry args={[0.1, 0.1, 0.08, 16]} />
+                            <meshStandardMaterial color="white" />
+                        </mesh>
+                        <mesh position={[0.4, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
+                            <cylinderGeometry args={[0.1, 0.1, 0.08, 16]} />
+                            <meshStandardMaterial color="white" />
+                        </mesh>
+                    </group>
+                )}
             </Float>
 
             {/* Glowing Orbs around */}
@@ -65,14 +100,8 @@ function AestheticModel({ gender }: { gender: string }) {
                     <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.5} toneMapped={false} />
                 </Sphere>
             </Float>
-            <Float speed={1.5} rotationIntensity={3} floatIntensity={1}>
-                <Sphere args={[0.1, 32, 32]} position={[0, -0.2, 1.5]}>
-                    <meshStandardMaterial color="white" emissive="white" emissiveIntensity={1} toneMapped={false} />
-                </Sphere>
-            </Float>
 
             {/* Distorted Background Element */}
-            {/* Reduced scale and opacity to stop it from overtaking the UI text completely */}
             <mesh position={[0, 1, -2]} scale={1.8}>
                 <sphereGeometry args={[1, 64, 64]} />
                 <MeshDistortMaterial color={color} distort={0.3} speed={2} roughness={0.2} metalness={0.8} opacity={0.15} transparent />
