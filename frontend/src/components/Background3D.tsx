@@ -80,18 +80,23 @@ function GLTFAvatar({ url, scale = 2, position = [0, -3, -5] }: { url: string, s
     useFrame((state) => {
         if (!groupRef.current) return;
 
-        // Mouse tracking logic applied to the entire imported model
+        // 1. Mouse Tracking (Looking at cursor)
         const targetX = (mouse.x * viewport.width) / 5;
         const targetY = (mouse.y * viewport.height) / 5;
-
-        // Slight dampening for realistic turning weight
         groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetX * 0.4, 0.05);
         groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, -targetY * 0.2, 0.05);
 
-        // Bobbing effect to simulate idle floating/breathing if no animation exists
-        if (!animations || animations.length === 0) {
-            groupRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 2) * 0.1;
-        }
+        // 2. Procedural Animation (Always active, simulating floating/breathing)
+        const time = state.clock.elapsedTime;
+
+        // Gentle up and down floating
+        groupRef.current.position.y = position[1] + Math.sin(time * 1.5) * 0.15;
+
+        // Very subtle side-to-side sway to feel more organic
+        groupRef.current.position.x = position[0] + Math.sin(time * 0.8) * 0.05;
+
+        // Slight tilting back and forth
+        groupRef.current.rotation.z = Math.sin(time * 1.2) * 0.03;
     });
 
     return (
@@ -138,9 +143,22 @@ function FBXAvatar({ url, scale = 0.012, position = [0, -3.5, -4] }: { url: stri
         groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetX * 0.4, 0.05);
         groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, -targetY * 0.2, 0.05);
 
+        // 2. Procedural Animation (Always active, simulating floating/breathing)
+        const time = state.clock.elapsedTime;
+
+        // Gentle up and down floating (Slightly faster/different rhythm than girl)
+        groupRef.current.position.y = position[1] + Math.sin(time * 1.8) * 0.12;
+
+        // Very subtle side-to-side sway
+        groupRef.current.position.x = position[0] + Math.cos(time * 1.1) * 0.04;
+
+        // Slight tilting back and forth
+        groupRef.current.rotation.z = Math.sin(time * 0.9) * 0.02;
+
         // Fallback bobbing if no animations exist in the FBX file
         if (!fbx.animations || fbx.animations.length === 0) {
-            groupRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 2) * 0.1;
+            // This block is now redundant as procedural animation is always active
+            // groupRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 2) * 0.1;
         }
     });
 
