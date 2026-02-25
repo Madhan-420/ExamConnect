@@ -22,20 +22,22 @@ except Exception:
 
 # Removed late monkey patch, managed in api/index.py
 
-# Regular client (uses anon key, respects RLS)
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-# Admin client (uses service role key, bypasses RLS)
-supabase_admin: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY) if SUPABASE_SERVICE_KEY else None
-
+# Lazy loaded clients to prevent AWS Lambda freeze/thaw EBUSY TCP socket errors 
+_supabase_client: Client = None
+_supabase_admin_client: Client = None
 
 def get_supabase() -> Client:
     """Get the regular Supabase client."""
-    return supabase
-
+    global _supabase_client
+    if _supabase_client is None:
+        _supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    return _supabase_client
 
 def get_supabase_admin() -> Client:
     """Get the admin Supabase client (bypasses RLS)."""
-    if not supabase_admin:
-        raise ValueError("SUPABASE_SERVICE_KEY must be set for admin operations")
-    return supabase_admin
+    global _supabase_admin_client
+    if _supabase_admin_client is None:
+        if not SUPABASE_SERVICE_KEY:
+            raise ValueError("SUPABASE_SERVICE_KEY must be set for admin operations")
+        _supabase_admin_client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    return _supabase_admin_client
