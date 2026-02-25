@@ -4,6 +4,16 @@ Vercel Serverless Entry Point
 import sys
 import os
 import traceback
+import socket
+
+# Extremely critical fix for Vercel/AWS Lambda Python 3.12:
+# httpx will attempt to use IPv6 if DNS returns it, but AWS Lambda Firecracker microVMs 
+# throw '[Errno 16] Device or resource busy' when attempting to open an IPv6 socket. 
+# We monkey-patch socket.getaddrinfo globally BEFORE any other imports to force IPv4.
+_real_getaddrinfo = socket.getaddrinfo
+def _ipv4_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+    return _real_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+socket.getaddrinfo = _ipv4_getaddrinfo
 
 # Add the backend root to path so 'app' package can be found
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
