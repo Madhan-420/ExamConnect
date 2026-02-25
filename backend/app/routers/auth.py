@@ -12,7 +12,7 @@ router = APIRouter()
 
 
 @router.post("/register", response_model=dict)
-async def register(user: UserRegister):
+def register(user: UserRegister):
     """Register a new user via Supabase Auth and create a profile."""
     try:
         sb_admin = get_supabase_admin()
@@ -66,7 +66,7 @@ async def register(user: UserRegister):
 
 
 @router.post("/login", response_model=dict)
-async def login(credentials: UserLogin):
+def login(credentials: UserLogin):
     """Login user and return access token."""
     try:
         sb = get_supabase()
@@ -109,6 +109,6 @@ async def login(credentials: UserLogin):
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_me(current_user: dict = Depends(get_current_user)):
+def get_me(current_user: dict = Depends(get_current_user)):
     """Get current user profile."""
     return current_user
