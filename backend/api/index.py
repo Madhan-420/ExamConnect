@@ -11,8 +11,9 @@ import socket
 # throw '[Errno 16] Device or resource busy' when attempting to open an IPv6 socket. 
 # We monkey-patch socket.getaddrinfo globally BEFORE any other imports to force IPv4.
 _real_getaddrinfo = socket.getaddrinfo
-def _ipv4_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
-    return _real_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+def _ipv4_getaddrinfo(*args, **kwargs):
+    responses = _real_getaddrinfo(*args, **kwargs)
+    return [r for r in responses if r[0] == socket.AF_INET]
 socket.getaddrinfo = _ipv4_getaddrinfo
 
 # Add the backend root to path so 'app' package can be found
