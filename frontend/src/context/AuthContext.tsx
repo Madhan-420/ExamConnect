@@ -96,7 +96,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
             return { error: 'Login failed' };
         } catch (err: any) {
-            return { error: err.response?.data?.detail || 'Login failed' };
+            if (err.response?.data?.detail) {
+                return { error: err.response.data.detail };
+            }
+            // Network error - request never reached the server
+            if (err.code === 'ERR_NETWORK' || err.message?.includes('Network Error')) {
+                return { error: 'Cannot reach the server. Please check your internet connection.' };
+            }
+            return { error: err.message || 'Login failed' };
         }
     };
 
