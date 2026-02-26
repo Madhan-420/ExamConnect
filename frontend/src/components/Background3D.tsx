@@ -8,6 +8,17 @@ import * as THREE from 'three';
 
 // --- Shared Elements ---
 
+// Prevent 3D Model fetch failures from crashing the whole app
+class AvatarErrorBoundary extends React.Component<{ children: React.ReactNode, theme: 'male' | 'female' | 'default' }, { hasError: boolean }> {
+    constructor(props: any) { super(props); this.state = { hasError: false }; }
+    static getDerivedStateFromError() { return { hasError: true }; }
+    componentDidCatch(error: any) { console.error("3D Avatar Load Error:", error); }
+    render() {
+        if (this.state.hasError) return <AbstractAvatar theme={this.props.theme} />;
+        return this.props.children;
+    }
+}
+
 // Fallback Abstract Avatar
 function AbstractAvatar({ theme }: { theme: 'male' | 'female' | 'default' }) {
     const groupRef = useRef<THREE.Group>(null);
@@ -276,14 +287,16 @@ function AvatarWrapper({ theme }: { theme: 'male' | 'female' | 'default' }) {
     }
 
     return (
-        <Suspense fallback={<AbstractAvatar theme={theme} />}>
-            {theme === 'male' ? (
-                // Play around with FBX scale depending on how the model was exported (0.01 or 0.02 is usually standard)
-                <FBXAvatar url={url} scale={0.015} position={[0, -3.5, -4]} />
-            ) : (
-                <GLTFAvatar url={url} scale={1.8} position={[0, -3, -5]} />
-            )}
-        </Suspense>
+        <AvatarErrorBoundary theme={theme}>
+            <Suspense fallback={<AbstractAvatar theme={theme} />}>
+                {theme === 'male' ? (
+                    // Play around with FBX scale depending on how the model was exported (0.01 or 0.02 is usually standard)
+                    <FBXAvatar url={url} scale={0.015} position={[0, -3.5, -4]} />
+                ) : (
+                    <GLTFAvatar url={url} scale={1.8} position={[0, -3, -5]} />
+                )}
+            </Suspense>
+        </AvatarErrorBoundary>
     );
 }
 

@@ -84,6 +84,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (_event, newSession) => {
+                // If Supabase sends a "null" session because it's blocked/failing,
+                // but we have a valid profile via our local API token, DO NOT wipe it.
+                if (!newSession && localStorage.getItem('exam_connect_token')) {
+                    return; // Ignore the fake logout event
+                }
+
                 setSession(newSession);
                 setUser(newSession?.user ?? null);
                 if (newSession?.access_token) {
