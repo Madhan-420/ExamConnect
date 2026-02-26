@@ -2,19 +2,30 @@
 
 import React, { useRef, useState, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Float, Sphere, Box, Torus, MeshDistortMaterial, Environment, ContactShadows, useCursor, useGLTF, useFBX, useAnimations } from '@react-three/drei';
+import { Float, Sphere, Box, Torus, MeshDistortMaterial, Environment, ContactShadows, useCursor, useGLTF, useFBX, useAnimations, Html } from '@react-three/drei';
 import { useTheme } from './ThemeProvider';
 import * as THREE from 'three';
 
 // --- Shared Elements ---
 
 // Prevent 3D Model fetch failures from crashing the whole app
-class AvatarErrorBoundary extends React.Component<{ children: React.ReactNode, theme: 'male' | 'female' | 'default' }, { hasError: boolean }> {
-    constructor(props: any) { super(props); this.state = { hasError: false }; }
-    static getDerivedStateFromError() { return { hasError: true }; }
+class AvatarErrorBoundary extends React.Component<{ children: React.ReactNode, theme: 'male' | 'female' | 'default' }, { hasError: boolean, errorMsg: string }> {
+    constructor(props: any) { super(props); this.state = { hasError: false, errorMsg: '' }; }
+    static getDerivedStateFromError(error: any) { return { hasError: true, errorMsg: error?.message || 'Unknown Error' }; }
     componentDidCatch(error: any) { console.error("3D Avatar Load Error:", error); }
     render() {
-        if (this.state.hasError) return <AbstractAvatar theme={this.props.theme} />;
+        if (this.state.hasError) {
+            return (
+                <group>
+                    <Html position={[0, 2, 0]} center>
+                        <div style={{ background: 'rgba(255,0,0,0.2)', color: '#ffaaaa', padding: '4px 8px', borderRadius: 4, fontSize: '10px', whiteSpace: 'nowrap' }}>
+                            Model Load Error: {this.state.errorMsg}
+                        </div>
+                    </Html>
+                    <AbstractAvatar theme={this.props.theme} />
+                </group>
+            );
+        }
         return this.props.children;
     }
 }
@@ -120,18 +131,21 @@ function GLTFAvatar({ url, scale = 2, position = [0, -3, -5] }: { url: string, s
 function FBXAvatar({ url, scale = 0.012, position = [0, -3.5, -4] }: { url: string, scale?: number, position?: [number, number, number] }) {
     const groupRef = useRef<THREE.Group>(null);
     const fbx = useFBX(url);
-    const { actions } = useAnimations(fbx.animations, groupRef);
+    const animations = fbx.animations || [];
+    const { actions } = useAnimations(animations, groupRef);
     const { mouse, viewport } = useThree();
 
-    useEffect(() => {
-        // FBX models sometimes don't automatically propagate animations/materials to children well in R3F, so we ensure they are clean
-        fbx.traverse((child) => {
+    // Clone the FBX object to prevent crashes on remount
+    const clonedFbx = React.useMemo(() => {
+        const clone = fbx.clone();
+        clone.traverse((child) => {
             if ((child as THREE.Mesh).isMesh) {
                 const mesh = child as THREE.Mesh;
                 mesh.castShadow = true;
                 mesh.receiveShadow = true;
             }
         });
+        return clone;
     }, [fbx]);
 
     useEffect(() => {
@@ -175,7 +189,7 @@ function FBXAvatar({ url, scale = 0.012, position = [0, -3.5, -4] }: { url: stri
 
     return (
         <group ref={groupRef} position={position} scale={scale}>
-            <primitive object={fbx} dispose={null} />
+            <primitive object={clonedFbx} dispose={null} />
         </group>
     );
 }
