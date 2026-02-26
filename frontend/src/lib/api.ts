@@ -34,10 +34,17 @@ api.interceptors.request.use(async (config) => {
         const result = await Promise.race([sessionPromise, timeoutPromise]) as any;
         if (result?.data?.session?.access_token) {
             config.headers.Authorization = `Bearer ${result.data.session.access_token}`;
+        } else {
+            // Supabase returned null session, fallback to localStorage
+            const storedToken = typeof window !== 'undefined'
+                ? localStorage.getItem('exam_connect_token')
+                : null;
+            if (storedToken) {
+                config.headers.Authorization = `Bearer ${storedToken}`;
+            }
         }
     } catch {
-        // If getSession fails/times out, continue without the token
-        // The token may have been stored in localStorage by the login flow
+        // If getSession throws or times out, fallback to localStorage
         const storedToken = typeof window !== 'undefined'
             ? localStorage.getItem('exam_connect_token')
             : null;
