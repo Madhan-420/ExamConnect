@@ -1,10 +1,15 @@
 import os
-import socket
 import tempfile
-from supabase import create_client, Client
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# ---------------------------------------------------------------------------
+# IPv4-only DNS is handled globally in api/index.py (the Vercel entry point).
+# No hardcoded IP overrides needed here – the universal IPv4 filter is safer.
+# ---------------------------------------------------------------------------
+
+from supabase import create_client, Client
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
@@ -20,11 +25,19 @@ try:
 except Exception:
     pass
 
-# Removed late monkey patch, managed in api/index.py
-
-# Lazy loaded clients to prevent AWS Lambda freeze/thaw EBUSY TCP socket errors 
+# ---------------------------------------------------------------------------
+# Lazy-loaded clients with reset capability for Lambda freeze/thaw recovery
+# ---------------------------------------------------------------------------
 _supabase_client: Client = None
 _supabase_admin_client: Client = None
+
+
+def reset_clients():
+    """Reset all cached clients so next call creates fresh connections."""
+    global _supabase_client, _supabase_admin_client
+    _supabase_client = None
+    _supabase_admin_client = None
+
 
 def get_supabase() -> Client:
     """Get the regular Supabase client."""
@@ -32,6 +45,7 @@ def get_supabase() -> Client:
     if _supabase_client is None:
         _supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
     return _supabase_client
+
 
 def get_supabase_admin() -> Client:
     """Get the admin Supabase client (bypasses RLS)."""
