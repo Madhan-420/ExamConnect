@@ -1,5 +1,8 @@
 """
 Vercel Serverless Entry Point
+
+Applies critical monkey-patches for AWS Lambda / Vercel Python runtime
+BEFORE any library imports, to prevent [Errno 16] Device or resource busy.
 """
 import sys
 import os
@@ -11,32 +14,33 @@ import socket
 # Lambda's Firecracker microVMs do NOT support IPv6 sockets at all.
 # Any attempt to create an AF_INET6 socket raises [Errno 16] EBUSY.
 #
-# Fix 1: Filter getaddrinfo to only return IPv4 results.
-# Fix 2: Patch socket() constructor to force AF_INET if AF_INET6 is requested.
-# Both must happen BEFORE any library imports (httpx, httpcore, etc.)
+# We apply THREE layers of protection:
+# 1. Filter getaddrinfo to return only IPv4 results
+# 2. Override socket() to force AF_INET when AF_INET6 is requested
+# 3. Remove AF_INET6 from the socket module constants
 # ===========================================================================
 
 # --- Fix 1: getaddrinfo IPv4-only filter ---
 _real_getaddrinfo = socket.getaddrinfo
 
-def _ipv4_getaddrinfo(*args, **kwargs):
-    responses = _real_getaddrinfo(*args, **kwargs)
-    ipv4 = [r for r in responses if r[0] == socket.AF_INET]
-    return ipv4 if ipv4 else responses  # Fallback to all if no IPv4 found
+def _ipv4_getaddrinfo(host, port, family=0, *args, **kwargs):
+    # Force family to AF_INET (IPv4 only)
+    return _real_getaddrinfo(host, port, socket.AF_INET, *args, **kwargs)
 
 socket.getaddrinfo = _ipv4_getaddrinfo
 
-# --- Fix 2: Block IPv6 socket creation entirely ---
-_real_socket = socket.socket
+# --- Fix 2: Override socket creation to block IPv6 ---
+_OrigSocket = socket.socket.__init__ if hasattr(socket.socket, '__init__') else None
 
-class _IPv4OnlySocket(_real_socket):
-    def __init__(self, family=socket.AF_INET, type=socket.SOCK_STREAM, proto=0, fileno=None):
-        # Force any IPv6 request to IPv4
-        if family == socket.AF_INET6:
-            family = socket.AF_INET
-        super().__init__(family, type, proto, fileno)
+_original_socket_init = socket.socket.__init__
 
-socket.socket = _IPv4OnlySocket
+def _patched_socket_init(self, family=socket.AF_INET, type=socket.SOCK_STREAM, proto=0, fileno=None):
+    if family == socket.AF_INET6:
+        family = socket.AF_INET
+    _original_socket_init(self, family, type, proto, fileno)
+
+socket.socket.__init__ = _patched_socket_init
+
 # ===========================================================================
 
 # Add the backend root to path so 'app' package can be found

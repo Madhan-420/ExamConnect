@@ -101,7 +101,7 @@ async def startup_event():
 async def root():
     return {
         "app": "Exam Connect API",
-        "version": "1.0.0",
+        "version": "1.0.2",
         "college": "MNSK College of Engineering",
         "status": "running"
     }
