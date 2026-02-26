@@ -13,8 +13,18 @@ router = APIRouter()
 
 
 def _is_ebusy(exc: Exception) -> bool:
-    """Check if an exception is caused by [Errno 16] Device or resource busy."""
-    return isinstance(exc, OSError) and exc.errno == errno.EBUSY
+    """Check if an exception (or its cause chain) is EBUSY."""
+    # Direct OSError check
+    if isinstance(exc, OSError) and exc.errno == errno.EBUSY:
+        return True
+    # httpx/httpcore wrap OSError - check the string
+    if "Device or resource busy" in str(exc):
+        return True
+    # Walk the cause chain
+    cause = getattr(exc, "__cause__", None) or getattr(exc, "__context__", None)
+    if cause and cause is not exc:
+        return _is_ebusy(cause)
+    return False
 
 
 @router.post("/register", response_model=dict)

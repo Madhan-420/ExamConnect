@@ -6,15 +6,38 @@ import os
 import traceback
 import socket
 
-# Extremely critical fix for Vercel/AWS Lambda Python 3.12:
-# httpx will attempt to use IPv6 if DNS returns it, but AWS Lambda Firecracker microVMs 
-# throw '[Errno 16] Device or resource busy' when attempting to open an IPv6 socket. 
-# We monkey-patch socket.getaddrinfo globally BEFORE any other imports to force IPv4.
+# ===========================================================================
+# CRITICAL FIX for Vercel/AWS Lambda:
+# Lambda's Firecracker microVMs do NOT support IPv6 sockets at all.
+# Any attempt to create an AF_INET6 socket raises [Errno 16] EBUSY.
+#
+# Fix 1: Filter getaddrinfo to only return IPv4 results.
+# Fix 2: Patch socket() constructor to force AF_INET if AF_INET6 is requested.
+# Both must happen BEFORE any library imports (httpx, httpcore, etc.)
+# ===========================================================================
+
+# --- Fix 1: getaddrinfo IPv4-only filter ---
 _real_getaddrinfo = socket.getaddrinfo
+
 def _ipv4_getaddrinfo(*args, **kwargs):
     responses = _real_getaddrinfo(*args, **kwargs)
-    return [r for r in responses if r[0] == socket.AF_INET]
+    ipv4 = [r for r in responses if r[0] == socket.AF_INET]
+    return ipv4 if ipv4 else responses  # Fallback to all if no IPv4 found
+
 socket.getaddrinfo = _ipv4_getaddrinfo
+
+# --- Fix 2: Block IPv6 socket creation entirely ---
+_real_socket = socket.socket
+
+class _IPv4OnlySocket(_real_socket):
+    def __init__(self, family=socket.AF_INET, type=socket.SOCK_STREAM, proto=0, fileno=None):
+        # Force any IPv6 request to IPv4
+        if family == socket.AF_INET6:
+            family = socket.AF_INET
+        super().__init__(family, type, proto, fileno)
+
+socket.socket = _IPv4OnlySocket
+# ===========================================================================
 
 # Add the backend root to path so 'app' package can be found
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
