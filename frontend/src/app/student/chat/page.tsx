@@ -47,13 +47,25 @@ export default function StudentChatPage() {
                 table: 'group_messages',
             }, async (payload) => {
                 const newMessage = payload.new as any;
-                const { data: profileData } = await supabase
-                    .from('profiles')
-                    .select('full_name, role')
-                    .eq('id', newMessage.sender_id)
-                    .single();
-                newMessage.profiles = profileData;
-                setMessages(prev => [...prev, newMessage]);
+                // Skip if we already optimistically added this message
+                setMessages(prev => {
+                    const isDuplicate = prev.some(
+                        m => m.sender_id === newMessage.sender_id &&
+                            m.content === newMessage.content &&
+                            m.id.toString().startsWith('temp-')
+                    );
+                    if (isDuplicate) {
+                        // Replace the temp message with the real one
+                        return prev.map(m =>
+                            (m.sender_id === newMessage.sender_id &&
+                                m.content === newMessage.content &&
+                                m.id.toString().startsWith('temp-'))
+                                ? { ...newMessage, profiles: m.profiles }
+                                : m
+                        );
+                    }
+                    return [...prev, { ...newMessage }];
+                });
                 scrollToBottom();
             })
             .subscribe();
@@ -65,13 +77,26 @@ export default function StudentChatPage() {
 
     const handleSend = async () => {
         if (!input.trim() || !profile) return;
-        const currentInput = input;
+        const currentInput = input.trim();
         setInput('');
+
+        // Optimistically add to UI immediately (works even if realtime is blocked)
+        const tempId = `temp-${Date.now()}`;
+        setMessages(prev => [...prev, {
+            id: tempId,
+            sender_id: profile.id,
+            content: currentInput,
+            created_at: new Date().toISOString(),
+            profiles: { full_name: profile.full_name, role: profile.role },
+        }]);
+        scrollToBottom();
+
         await supabase.from('group_messages').insert([{
             sender_id: profile.id,
             content: currentInput,
         }]);
     };
+
 
     return (
         <DashboardLayout>

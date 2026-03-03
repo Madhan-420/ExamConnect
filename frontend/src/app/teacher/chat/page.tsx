@@ -107,17 +107,33 @@ export default function TeacherChatPage() {
         }
 
         const currentInput = input.trim();
+        const currentFileName = selectedFile?.name || null;
         setInput('');
         setSelectedFile(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
 
+        // Optimistically add to UI immediately
+        const tempId = `temp-${Date.now()}`;
+        const content = currentInput || (currentFileName ? `📎 Shared a file: ${currentFileName}` : '');
+        setMessages(prev => [...prev, {
+            id: tempId,
+            sender_id: profile.id,
+            content,
+            file_url: fileUrl,
+            file_name: fileName,
+            created_at: new Date().toISOString(),
+            profiles: { full_name: profile.full_name, role: profile.role },
+        }]);
+        scrollToBottom();
+
         await supabase.from('group_messages').insert([{
             sender_id: profile.id,
-            content: currentInput || (fileName ? `📎 Shared a file: ${fileName}` : ''),
+            content,
             file_url: fileUrl,
             file_name: fileName,
         }]);
     };
+
 
     return (
         <DashboardLayout>
