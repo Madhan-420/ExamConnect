@@ -161,3 +161,123 @@ async def delete_user(
         raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to delete user: {str(e)}")
+
+
+# ─── Admin Analytics ───
+
+import json as _json
+
+@router.get("/analytics/students", response_model=list)
+async def student_performance(current_user: dict = Depends(require_role("admin"))):
+    """All students with their results, grades, and average performance."""
+    try:
+        sb = get_supabase_admin()
+        students = sb.table("profiles").select("*").eq("role", "student").order("full_name").execute()
+        student_list = students.data or []
+        for s in student_list:
+            subs = sb.table("submissions").select("id, exam_id, submitted_at, status").eq("student_id", s["id"]).execute()
+            s["total_submissions"] = len(subs.data or [])
+            results = sb.table("results").select("marks_obtained, total_marks, percentage, grade, exam_id").eq("student_id", s["id"]).execute()
+            res_list = results.data or []
+            s["results"] = res_list
+            s["total_results"] = len(res_list)
+            percs = [r["percentage"] for r in res_list if r.get("percentage") is not None]
+            s["average_percentage"] = round(sum(percs) / len(percs), 1) if percs else None
+            grades = [r.get("grade") for r in res_list if r.get("grade")]
+            s["grades"] = grades
+        return student_list
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/analytics/teachers", response_model=list)
+async def teacher_activity(current_user: dict = Depends(require_role("admin"))):
+    """All teachers with their exam counts, submission counts, and activity."""
+    try:
+        sb = get_supabase_admin()
+        teachers = sb.table("profiles").select("*").eq("role", "teacher").order("full_name").execute()
+        teacher_list = teachers.data or []
+        for t in teacher_list:
+            exams = sb.table("exams").select("id, title, subject, status, created_at").eq("teacher_id", t["id"]).order("created_at", desc=True).execute()
+            exam_list = exams.data or []
+            t["exams"] = exam_list
+            t["total_exams"] = len(exam_list)
+            exam_ids = [e["id"] for e in exam_list]
+            total_subs = 0
+            evaluated = 0
+            for eid in exam_ids:
+                subs = sb.table("submissions").select("id, status").eq("exam_id", eid).execute()
+                sub_list = subs.data or []
+                total_subs += len(sub_list)
+                evaluated += sum(1 for s in sub_list if s["status"] == "evaluated")
+            t["total_submissions_received"] = total_subs
+            t["evaluated_count"] = evaluated
+        return teacher_list
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/analytics/submissions")
+async def all_submissions_report(current_user: dict = Depends(require_role("admin"))):
+    """Download all submissions across all exams as JSON."""
+    try:
+        sb = get_supabase_admin()
+        subs = sb.table("submissions").select("*").order("submitted_at", desc=True).execute()
+        submissions = subs.data or []
+        for sub in submissions:
+            student = sb.table("profiles").select("full_name, email, reg_number").eq("id", sub["student_id"]).single().execute()
+            sub["student"] = student.data or {}
+            exam = sb.table("exams").select("title, subject").eq("id", sub["exam_id"]).single().execute()
+            sub["exam"] = exam.data or {}
+            result = sb.table("results").select("marks_obtained, total_marks, percentage, grade").eq("submission_id", sub["id"]).execute()
+            sub["result"] = result.data[0] if result.data else None
+        content = _json.dumps(submissions, indent=2, default=str)
+        from fastapi.responses import Response
+        return Response(content=content, media_type="application/json",
+            headers={"Content-Disposition": "attachment; filename=all_submissions.json"})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/exams", response_model=list)
+async def admin_list_exams(current_user: dict = Depends(require_role("admin"))):
+    """All exams with teacher info and submission counts."""
+    try:
+        sb = get_supabase_admin()
+        exams = sb.table("exams").select("*").order("created_at", desc=True).execute()
+        exam_list = exams.data or []
+        for e in exam_list:
+            teacher = sb.table("profiles").select("full_name").eq("id", e["teacher_id"]).single().execute()
+            e["teacher_name"] = teacher.data.get("full_name", "Unknown") if teacher.data else "Unknown"
+            subs = sb.table("submissions").select("id", count="exact").eq("exam_id", e["id"]).execute()
+            e["submission_count"] = subs.count or 0
+        return exam_list
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/exams/{exam_id}/detail", response_model=dict)
+async def admin_exam_detail(exam_id: str, current_user: dict = Depends(require_role("admin"))):
+    """Admin view: full exam with questions and all submissions."""
+    try:
+        sb = get_supabase_admin()
+        exam = sb.table("exams").select("*").eq("id", exam_id).single().execute()
+        if not exam.data:
+            raise HTTPException(status_code=404, detail="Exam not found")
+        questions = sb.table("questions").select("*").eq("exam_id", exam_id).order("order_num").execute()
+        subs = sb.table("submissions").select("*").eq("exam_id", exam_id).order("submitted_at", desc=True).execute()
+        submissions = subs.data or []
+        for sub in submissions:
+            student = sb.table("profiles").select("full_name, email, reg_number").eq("id", sub["student_id"]).single().execute()
+            sub["student"] = student.data or {}
+            result = sb.table("results").select("*").eq("submission_id", sub["id"]).execute()
+            sub["result"] = result.data[0] if result.data else None
+        data = exam.data
+        data["questions"] = questions.data or []
+        data["submissions"] = submissions
+        return data
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+

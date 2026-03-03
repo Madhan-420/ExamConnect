@@ -20,13 +20,17 @@ import {
     Sparkles,
     MessageSquare,
     Video,
+    BarChart2,
+    GraduationCap,
 } from 'lucide-react';
 
 const roleNavItems = {
     admin: [
         { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { href: '/admin/users', label: 'Manage Users', icon: Users },
-        { href: '/admin/exams', label: 'All Exams', icon: FileText },
+        { href: '/admin/exams', label: 'Exam Monitor', icon: FileText },
+        { href: '/admin/students', label: 'Student Performance', icon: GraduationCap },
+        { href: '/admin/teachers', label: 'Teacher Activity', icon: BarChart2 },
     ],
     teacher: [
         { href: '/teacher/dashboard', label: 'Dashboard', icon: LayoutDashboard },
