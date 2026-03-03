@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../../../components/DashboardLayout';
-import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../context/AuthContext';
 import { Video, Plus, ExternalLink, Square } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import api from '../../../lib/api';
 
 export default function TeacherLiveClassesPage() {
     const { profile } = useAuth();
@@ -14,57 +14,46 @@ export default function TeacherLiveClassesPage() {
     const [titleInput, setTitleInput] = useState('');
     const [starting, setStarting] = useState(false);
 
+    const fetchClasses = async () => {
+        try {
+            const { data } = await api.get('/api/live-classes/active');
+            setClasses(data || []);
+        } catch { /* ignore */ }
+        setLoading(false);
+    };
+
     useEffect(() => {
         if (!profile) return;
-
-        const fetchClasses = async () => {
-            const { data } = await supabase
-                .from('live_classes')
-                .select('*, profiles(full_name)')
-                .eq('is_active', true)
-                .order('created_at', { ascending: false });
-            if (data) setClasses(data);
-            setLoading(false);
-        };
-
         fetchClasses();
-
-        const subscription = supabase
-            .channel('live_classes_teacher_channel')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'live_classes' }, () => {
-                fetchClasses();
-            })
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(subscription);
-        };
+        const interval = setInterval(fetchClasses, 5000);
+        return () => clearInterval(interval);
     }, [profile]);
 
     const handleStartClass = async () => {
         if (!titleInput.trim() || !profile) return;
         setStarting(true);
         const roomId = `examconnect-${profile.id}-${Date.now()}`;
-        await supabase.from('live_classes').insert([{
-            teacher_id: profile.id,
-            title: titleInput.trim(),
-            room_id: roomId,
-            is_active: true,
-        }]);
-        setTitleInput('');
+        try {
+            await api.post('/api/live-classes/start', {
+                title: titleInput.trim(),
+                room_id: roomId,
+            });
+            setTitleInput('');
+            await fetchClasses();
+            window.open(`https://meet.jit.si/${roomId}`, '_blank');
+        } catch (e: any) {
+            alert(e.response?.data?.detail || 'Failed to start class. Please try again.');
+        }
         setStarting(false);
-        window.open(`https://meet.jit.si/${roomId}`, '_blank');
     };
 
     const handleEndClass = async (classId: string) => {
-        await supabase.from('live_classes').update({
-            is_active: false,
-            ended_at: new Date().toISOString(),
-        }).eq('id', classId);
-    };
-
-    const handleJoin = (roomId: string) => {
-        window.open(`https://meet.jit.si/${roomId}`, '_blank');
+        try {
+            await api.patch(`/api/live-classes/end/${classId}`);
+            await fetchClasses();
+        } catch (e: any) {
+            alert(e.response?.data?.detail || 'Failed to end class.');
+        }
     };
 
     return (
@@ -74,24 +63,20 @@ export default function TeacherLiveClassesPage() {
                     <Video size={28} color="#a78bfa" />
                     Live Classes
                 </h1>
-                <p style={{ color: 'var(--text-secondary)' }}>Start and manage your live classes. Students will see them instantly.</p>
+                <p style={{ color: 'var(--text-secondary)' }}>Start and manage your live classes. Students will see them within seconds.</p>
             </div>
 
-            {/* Start new class card */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
+            {/* Start new class */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
                 style={{
                     padding: 28,
                     background: 'linear-gradient(135deg, rgba(139,92,246,0.12), rgba(59,130,246,0.08))',
                     border: '1px solid rgba(139,92,246,0.25)',
-                    borderRadius: 20,
-                    marginBottom: 28,
+                    borderRadius: 20, marginBottom: 28,
                 }}
             >
                 <h2 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Plus size={18} color="#a78bfa" />
-                    Start a New Class
+                    <Plus size={18} color="#a78bfa" /> Start a New Class
                 </h2>
                 <div style={{ display: 'flex', gap: 12 }}>
                     <input
@@ -107,19 +92,17 @@ export default function TeacherLiveClassesPage() {
                         }}
                     />
                     <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.97 }}
+                        whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
                         onClick={handleStartClass}
                         disabled={!titleInput.trim() || starting}
                         style={{
                             padding: '12px 24px',
-                            background: titleInput.trim() ? 'linear-gradient(135deg, #8b5cf6, #3b82f6)' : 'rgba(255,255,255,0.05)',
+                            background: titleInput.trim() && !starting ? 'linear-gradient(135deg, #8b5cf6, #3b82f6)' : 'rgba(255,255,255,0.05)',
                             color: 'white', border: 'none', borderRadius: 12,
-                            fontWeight: 600, fontSize: '0.95rem', cursor: titleInput.trim() ? 'pointer' : 'default',
+                            fontWeight: 600, fontSize: '0.95rem', cursor: titleInput.trim() && !starting ? 'pointer' : 'default',
                             display: 'flex', alignItems: 'center', gap: 8,
                             boxShadow: titleInput.trim() ? '0 4px 15px rgba(139,92,246,0.35)' : 'none',
-                            whiteSpace: 'nowrap',
-                            transition: 'all 0.2s ease',
+                            whiteSpace: 'nowrap', transition: 'all 0.2s ease',
                         }}
                     >
                         <Video size={16} />
@@ -127,11 +110,11 @@ export default function TeacherLiveClassesPage() {
                     </motion.button>
                 </div>
                 <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 10 }}>
-                    Classes open in Jitsi Meet. Students will see your class listed instantly.
+                    Classes open in Jitsi Meet. Students will see your class listed within seconds.
                 </p>
             </motion.div>
 
-            {/* Active Classes */}
+            {/* Active classes */}
             <h2 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                 Active Classes
                 {classes.length > 0 && (
@@ -147,12 +130,11 @@ export default function TeacherLiveClassesPage() {
                     {[1, 2].map(i => <div key={i} className="skeleton" style={{ height: 180, borderRadius: 16 }} />)}
                 </div>
             ) : classes.length === 0 ? (
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                     style={{
                         textAlign: 'center', padding: '60px 40px',
-                        background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-glass)', borderRadius: 16,
+                        background: 'rgba(255,255,255,0.02)',
+                        border: '1px solid var(--border-glass)', borderRadius: 16,
                     }}
                 >
                     <Video size={40} style={{ opacity: 0.3, marginBottom: 12 }} />
@@ -191,7 +173,7 @@ export default function TeacherLiveClassesPage() {
                                         <span style={{
                                             width: 7, height: 7, borderRadius: '50%',
                                             background: '#ef4444', boxShadow: '0 0 6px #ef4444',
-                                            animation: 'pulse 2s infinite',
+                                            display: 'inline-block',
                                         }} />
                                         LIVE
                                     </span>
@@ -200,7 +182,7 @@ export default function TeacherLiveClassesPage() {
                                 <div style={{ display: 'flex', gap: 10 }}>
                                     <motion.button
                                         whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                                        onClick={() => handleJoin(cls.room_id)}
+                                        onClick={() => window.open(`https://meet.jit.si/${cls.room_id}`, '_blank')}
                                         style={{
                                             flex: 1, padding: '10px',
                                             background: 'linear-gradient(135deg, #8b5cf6, #3b82f6)',
