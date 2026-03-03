@@ -49,7 +49,7 @@ async def options_handler(request: Request, path: str):
     )
 
 
-from app.routers import admin, teachers, students, auth
+from app.routers import admin, teachers, students, auth, chat
 from app.services.supabase import get_supabase_admin
 import asyncio
 from datetime import datetime, timedelta, timezone
@@ -58,6 +58,8 @@ app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(teachers.router, prefix="/api/teacher", tags=["Teachers"])
 app.include_router(students.router, prefix="/api/student", tags=["Students"])
+app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])
+
 
 async def delete_old_submissions():
     """Background task to delete PDF submissions older than 24 hours."""

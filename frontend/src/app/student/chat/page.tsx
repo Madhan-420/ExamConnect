@@ -2,17 +2,17 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import DashboardLayout from '../../../components/DashboardLayout';
-import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../context/AuthContext';
 import { Send, Users, MessageSquare, Wifi, WifiOff } from 'lucide-react';
 import { motion } from 'framer-motion';
+import api from '../../../lib/api';
 
 export default function StudentChatPage() {
     const { profile } = useAuth();
     const [messages, setMessages] = useState<any[]>([]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(true);
-    const [connected, setConnected] = useState(true);
+    const [connected, setConnected] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const lastFetchTimeRef = useRef<string>(new Date(0).toISOString());
 
@@ -22,7 +22,6 @@ export default function StudentChatPage() {
         }, 100);
     };
 
-    // Merge new messages without duplicates
     const mergeMessages = (prev: any[], newMsgs: any[]) => {
         const existingIds = new Set(prev.map(m => String(m.id)));
         const toAdd = newMsgs.filter(m => !existingIds.has(String(m.id)));
@@ -33,83 +32,44 @@ export default function StudentChatPage() {
     useEffect(() => {
         if (!profile) return;
 
-        // Initial full fetch
+        // Initial load
         const fetchAll = async () => {
             setLoading(true);
-            const { data } = await supabase
-                .from('group_messages')
-                .select('*, profiles(full_name, role)')
-                .order('created_at', { ascending: true })
-                .limit(100);
-            if (data && data.length > 0) {
-                setMessages(data);
-                lastFetchTimeRef.current = data[data.length - 1].created_at;
-                scrollToBottom();
+            try {
+                const { data } = await api.get('/api/chat/messages');
+                setMessages(data || []);
+                if (data && data.length > 0) {
+                    lastFetchTimeRef.current = data[data.length - 1].created_at;
+                    scrollToBottom();
+                }
+                setConnected(true);
+            } catch (e) {
+                setConnected(false);
             }
             setLoading(false);
         };
         fetchAll();
 
-        // Supabase realtime (works when not blocked)
-        const subscription = supabase
-            .channel('group_messages_student')
-            .on('postgres_changes', {
-                event: 'INSERT',
-                schema: 'public',
-                table: 'group_messages',
-            }, (payload) => {
-                const newMsg = payload.new as any;
-                setConnected(true);
-                setMessages(prev => {
-                    // Replace temp optimistic message or add new one
-                    const hasTemp = prev.some(
-                        m => String(m.id).startsWith('temp-') &&
-                            m.sender_id === newMsg.sender_id &&
-                            m.content === newMsg.content
-                    );
-                    if (hasTemp) {
-                        return prev.map(m =>
-                            String(m.id).startsWith('temp-') &&
-                                m.sender_id === newMsg.sender_id &&
-                                m.content === newMsg.content
-                                ? { ...newMsg, profiles: m.profiles }
-                                : m
-                        );
-                    }
-                    const existingIds = new Set(prev.map(m => String(m.id)));
-                    if (existingIds.has(String(newMsg.id))) return prev;
-                    return [...prev, newMsg];
-                });
-                lastFetchTimeRef.current = newMsg.created_at;
-                scrollToBottom();
-            })
-            .subscribe((status) => {
-                setConnected(status === 'SUBSCRIBED');
-            });
-
-        // Polling fallback — fetch new messages every 4 seconds
-        // This ensures other users' messages appear even when realtime is blocked
+        // Poll every 4 seconds for new messages
         const pollInterval = setInterval(async () => {
-            const since = lastFetchTimeRef.current;
-            const { data } = await supabase
-                .from('group_messages')
-                .select('*, profiles(full_name, role)')
-                .gt('created_at', since)
-                .order('created_at', { ascending: true });
-            if (data && data.length > 0) {
-                lastFetchTimeRef.current = data[data.length - 1].created_at;
-                setMessages(prev => {
-                    const merged = mergeMessages(prev, data);
-                    if (merged !== prev) scrollToBottom();
-                    return merged;
-                });
+            try {
+                const since = encodeURIComponent(lastFetchTimeRef.current);
+                const { data } = await api.get(`/api/chat/messages/since?since=${since}`);
+                if (data && data.length > 0) {
+                    lastFetchTimeRef.current = data[data.length - 1].created_at;
+                    setMessages(prev => {
+                        const merged = mergeMessages(prev, data);
+                        if (merged !== prev) scrollToBottom();
+                        return merged;
+                    });
+                }
+                setConnected(true);
+            } catch {
+                setConnected(false);
             }
         }, 4000);
 
-        return () => {
-            supabase.removeChannel(subscription);
-            clearInterval(pollInterval);
-        };
+        return () => clearInterval(pollInterval);
     }, [profile]);
 
     const handleSend = async () => {
@@ -117,7 +77,7 @@ export default function StudentChatPage() {
         const currentInput = input.trim();
         setInput('');
 
-        // Optimistically add to UI immediately
+        // Optimistic update — message appears immediately
         const tempId = `temp-${Date.now()}`;
         setMessages(prev => [...prev, {
             id: tempId,
@@ -128,10 +88,18 @@ export default function StudentChatPage() {
         }]);
         scrollToBottom();
 
-        await supabase.from('group_messages').insert([{
-            sender_id: profile.id,
-            content: currentInput,
-        }]);
+        try {
+            const { data: sent } = await api.post('/api/chat/messages', { content: currentInput });
+            // Replace temp with real message
+            if (sent?.id) {
+                setMessages(prev => prev.map(m =>
+                    m.id === tempId ? { ...sent, profiles: { full_name: profile.full_name, role: profile.role } } : m
+                ));
+            }
+        } catch (e) {
+            // Keep optimistic message but mark as failed
+            console.error('Failed to send message:', e);
+        }
     };
 
     return (
@@ -165,8 +133,8 @@ export default function StudentChatPage() {
                     <h3 style={{ fontSize: '1rem', fontWeight: 600 }}>Global Student Chat</h3>
                     <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', fontWeight: 600 }}>
                         {connected
-                            ? <><Wifi size={13} color="#4ade80" /><span style={{ color: '#4ade80' }}>Live</span></>
-                            : <><WifiOff size={13} color="#f97316" /><span style={{ color: '#f97316' }}>Polling</span></>
+                            ? <><Wifi size={13} color="#4ade80" /><span style={{ color: '#4ade80' }}>Connected</span></>
+                            : <><WifiOff size={13} color="#f97316" /><span style={{ color: '#f97316' }}>Connecting…</span></>
                         }
                     </span>
                 </div>
@@ -193,22 +161,20 @@ export default function StudentChatPage() {
                             return (
                                 <motion.div
                                     key={msg.id}
-                                    initial={{ opacity: 0, y: 10 }}
+                                    initial={{ opacity: 0, y: 8 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     style={{
                                         alignSelf: isMe ? 'flex-end' : 'flex-start',
                                         maxWidth: '70%',
                                         display: 'flex', flexDirection: 'column',
                                         alignItems: isMe ? 'flex-end' : 'flex-start',
-                                        opacity: isTemp ? 0.75 : 1,
+                                        opacity: isTemp ? 0.7 : 1,
                                     }}
                                 >
                                     {!isMe && (
                                         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4, marginLeft: 4 }}>
                                             {msg.profiles?.full_name}
-                                            {msg.profiles?.role === 'teacher' && (
-                                                <span style={{ color: '#a78bfa', marginLeft: 4 }}>(Teacher)</span>
-                                            )}
+                                            {msg.profiles?.role === 'teacher' && <span style={{ color: '#a78bfa', marginLeft: 4 }}>(Teacher)</span>}
                                         </span>
                                     )}
                                     <div style={{
@@ -217,8 +183,7 @@ export default function StudentChatPage() {
                                         borderBottomRightRadius: isMe ? 4 : 18,
                                         borderBottomLeftRadius: !isMe ? 4 : 18,
                                         background: isMe ? 'var(--accent-blue)' : 'rgba(255,255,255,0.06)',
-                                        color: 'white',
-                                        fontSize: '0.92rem', lineHeight: 1.5,
+                                        color: 'white', fontSize: '0.92rem', lineHeight: 1.5,
                                         border: isMe ? 'none' : '1px solid var(--border-glass)',
                                         boxShadow: isMe ? '0 4px 15px rgba(59,130,246,0.3)' : 'none',
                                     }}>
