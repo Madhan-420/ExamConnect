@@ -26,11 +26,24 @@ def get_active_classes(current_user: dict = Depends(get_current_user)):
     """Get all currently active live classes."""
     try:
         sb = get_supabase_admin()
-        result = sb.table("live_classes") \
+        query = sb.table("live_classes") \
             .select("*, profiles(full_name)") \
             .eq("is_active", True) \
-            .order("created_at", desc=False) \
-            .execute()
+            .order("created_at", desc=False)
+            
+        role = current_user.get("role")
+        
+        if role == "student":
+            student = sb.table("profiles").select("mentor_id").eq("id", current_user["id"]).single().execute()
+            mentor_id = student.data.get("mentor_id") if student.data else None
+            if mentor_id:
+                query = query.eq("teacher_id", mentor_id)
+            else:
+                return []
+        elif role == "teacher":
+            query = query.eq("teacher_id", current_user["id"])
+
+        result = query.execute()
         return result.data or []
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

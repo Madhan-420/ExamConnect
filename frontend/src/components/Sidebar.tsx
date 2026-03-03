@@ -22,19 +22,25 @@ import {
     Video,
     BarChart2,
     GraduationCap,
+    Award
 } from 'lucide-react';
 
 const roleNavItems = {
     admin: [
         { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { href: '/admin/users', label: 'Manage Users', icon: Users },
+        { href: '/admin/feedbacks', label: 'Complaints', icon: MessageSquare },
         { href: '/admin/exams', label: 'Exam Monitor', icon: FileText },
         { href: '/admin/students', label: 'Student Performance', icon: GraduationCap },
         { href: '/admin/teachers', label: 'Teacher Activity', icon: BarChart2 },
     ],
     teacher: [
         { href: '/teacher/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+        { href: '/teacher/my-students', label: 'My Students', icon: Users },
+        { href: '/teacher/attendance', label: 'Attendance', icon: FileText },
+        { href: '/teacher/internal-marks', label: 'Internal Marks', icon: Award },
         { href: '/teacher/exams', label: 'My Exams', icon: ClipboardList },
+        { href: '/teacher/feedbacks', label: 'Complaints', icon: MessageSquare },
         { href: '/teacher/chat', label: 'Group Chat', icon: MessageSquare },
         { href: '/teacher/live-classes', label: 'Live Classes', icon: Video },
     ],

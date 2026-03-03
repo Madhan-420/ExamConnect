@@ -61,6 +61,8 @@ class UserResponse(BaseModel):
     department: Optional[str] = None
     reg_number: Optional[str] = None
     created_at: Optional[str] = None
+    mentor_id: Optional[str] = None
+    last_seen: Optional[str] = None
 
 
 class UserUpdate(BaseModel):
@@ -69,6 +71,7 @@ class UserUpdate(BaseModel):
     gender: Optional[UserGender] = None
     department: Optional[str] = None
     reg_number: Optional[str] = None
+    mentor_id: Optional[str] = None
 
 
 # ──── Exams ────
@@ -193,3 +196,56 @@ class StudentDashboard(BaseModel):
     total_submissions: int
     average_percentage: Optional[float] = None
     recent_results: List[dict] = []
+
+
+# ──── Feedback & Complaints ────
+
+class FeedbackCreate(BaseModel):
+    subject: str = Field(min_length=3)
+    message: str = Field(min_length=5)
+
+class FeedbackResponse(BaseModel):
+    id: str
+    user_id: str
+    subject: str
+    message: str
+    status: str
+    created_at: Optional[str] = None
+    user_name: Optional[str] = None # Added for convenience
+
+
+# ──── Attendance ────
+
+class AttendanceCreate(BaseModel):
+    student_id: str
+    date: str # ISO Date string YYYY-MM-DD
+    status: str # 'present', 'absent', 'late'
+    remarks: Optional[str] = None
+
+class AttendanceResponse(BaseModel):
+    id: str
+    student_id: str
+    teacher_id: str
+    date: str
+    status: str
+    remarks: Optional[str] = None
+    created_at: Optional[str] = None
+
+
+# ──── Internal Marks ────
+
+class InternalMarksCreate(BaseModel):
+    student_id: str
+    subject: str
+    marks: int = Field(ge=0)
+    total_marks: int = Field(ge=1)
+
+class InternalMarksResponse(BaseModel):
+    id: str
+    student_id: str
+    teacher_id: str
+    subject: str
+    marks: int
+    total_marks: int
+    created_at: Optional[str] = None
+

@@ -16,6 +16,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }
     }, [loading, profile, router]);
 
+    React.useEffect(() => {
+        if (!profile) return;
+
+        // Initial ping immediately
+        const ping = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                if (token) {
+                    await fetch(`${apiUrl}/api/auth/ping`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                }
+            } catch (e) {
+                // Ignore ping failures
+            }
+        };
+
+        ping();
+
+        // Ping every 30 seconds
+        const intervalId = setInterval(ping, 30000);
+        return () => clearInterval(intervalId);
+    }, [profile]);
+
     if (loading) {
         return (
             <div style={{

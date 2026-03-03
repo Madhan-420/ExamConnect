@@ -18,12 +18,18 @@ export default function ManageUsersPage() {
     });
     const [submitting, setSubmitting] = useState(false);
 
+    const [teachers, setTeachers] = useState<any[]>([]);
+
     const fetchUsers = () => {
         const url = filter ? `/api/admin/users?role=${filter}` : '/api/admin/users';
         api.get(url)
             .then(res => setUsers(res.data))
             .catch(console.error)
             .finally(() => setLoading(false));
+
+        api.get('/api/admin/users?role=teacher')
+            .then(res => setTeachers(res.data))
+            .catch(console.error);
     };
 
     useEffect(() => { fetchUsers(); }, [filter]);
@@ -48,6 +54,19 @@ export default function ManageUsersPage() {
             fetchUsers();
         } catch (err: any) {
             alert(err.response?.data?.detail || 'Failed to update user');
+        }
+    };
+
+    const handleAssignMentor = async (userId: string, mentorId: string) => {
+        try {
+            // Note: If mentorId is empty, we might want to unassign, but the API expects a valid mentor. 
+            // We can skip unassign for now or handle string emptiness.
+            if (!mentorId) return;
+            await api.put(`/api/admin/users/${userId}/mentor?mentor_id=${mentorId}`);
+            fetchUsers();
+            alert("Mentor assigned successfully");
+        } catch (err: any) {
+            alert(err.response?.data?.detail || 'Failed to assign mentor');
         }
     };
 
@@ -115,7 +134,7 @@ export default function ManageUsersPage() {
                     <table className="data-table">
                         <thead>
                             <tr>
-                                <th>Name</th><th>Email</th><th>Role</th><th>Department</th><th>Actions</th>
+                                <th>Name</th><th>Email</th><th>Role</th><th>Department</th><th>Mentor</th><th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -125,6 +144,26 @@ export default function ManageUsersPage() {
                                     <td>{user.email}</td>
                                     <td><span className={`badge badge-${user.role}`}>{user.role}</span></td>
                                     <td>{user.department || '—'}</td>
+                                    <td>
+                                        {user.role === 'student' ? (
+                                            <select
+                                                value={user.mentor_id || ''}
+                                                onChange={(e) => handleAssignMentor(user.id, e.target.value)}
+                                                style={{
+                                                    padding: '6px 10px', borderRadius: 6, fontSize: '0.8rem',
+                                                    background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-glass)',
+                                                    color: 'var(--text-primary)', cursor: 'pointer', maxWidth: 140
+                                                }}
+                                            >
+                                                <option value="" disabled>Select Mentor</option>
+                                                {teachers.map(t => (
+                                                    <option key={t.id} value={t.id}>{t.full_name}</option>
+                                                ))}
+                                            </select>
+                                        ) : (
+                                            <span style={{ color: 'var(--text-muted)' }}>N/A</span>
+                                        )}
+                                    </td>
                                     <td>
                                         <div style={{ display: 'flex', gap: 8 }}>
                                             <select

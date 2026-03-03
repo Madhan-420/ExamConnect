@@ -385,3 +385,140 @@ async def publish_results(exam_id: str, current_user: dict = Depends(require_rol
         raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# ──── Mentorship, Attendance, Internal Marks, Feedbacks ────
+
+@router.get("/my-students", response_model=list)
+async def get_assigned_students(current_user: dict = Depends(require_role("teacher"))):
+    """Get all students assigned to this teacher as their mentor."""
+    try:
+        sb = get_supabase_admin()
+        students = sb.table("profiles").select("*").eq("mentor_id", current_user["id"]).order("full_name").execute()
+        return students.data or []
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/feedbacks", response_model=dict)
+async def submit_feedback(
+    feedback: dict, # using raw dict since FeedbackCreate was just added
+    current_user: dict = Depends(require_role("teacher"))
+):
+    """Submit a feedback/complaint as a teacher."""
+    try:
+        sb = get_supabase_admin()
+        data = {
+            "user_id": current_user["id"],
+            "subject": feedback.get("subject"),
+            "message": feedback.get("message"),
+            "status": "pending"
+        }
+        sb.table("feedbacks").insert(data).execute()
+        return {"message": "Feedback submitted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/feedbacks", response_model=list)
+async def get_teacher_feedbacks(current_user: dict = Depends(require_role("teacher"))):
+    """Get all feedbacks submitted by this teacher."""
+    try:
+        sb = get_supabase_admin()
+        feedbacks = sb.table("feedbacks").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).execute()
+        return feedbacks.data or []
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/attendance", response_model=dict)
+async def mark_attendance(
+    attendance_data: list, # List of dicts: student_id, date, status, remarks
+    current_user: dict = Depends(require_role("teacher"))
+):
+    """Batch insert/update attendance for students."""
+    try:
+        sb = get_supabase_admin()
+        
+        insert_data = []
+        for a in attendance_data:
+            insert_data.append({
+                "student_id": a.get("student_id"),
+                "teacher_id": current_user["id"],
+                "date": a.get("date"),
+                "status": a.get("status"),
+                "remarks": a.get("remarks")
+            })
+
+        # Upsert by student_id and date
+        # Assuming the supabase UPSERT config is properly handled or simple insert is fine 
+        # For simplicity, if conflict on unique constraint, we'll suggest ignoring or replacing.
+        for data in insert_data:
+            existing = sb.table("attendance").select("id").eq("student_id", data["student_id"]).eq("date", data["date"]).execute()
+            if existing.data:
+                sb.table("attendance").update(data).eq("id", existing.data[0]["id"]).execute()
+            else:
+                sb.table("attendance").insert(data).execute()
+                
+        return {"message": "Attendance marked successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/attendance", response_model=list)
+async def get_attendance(
+    date: str = None, 
+    current_user: dict = Depends(require_role("teacher"))
+):
+    """Get attendance records. Filter by date if provided."""
+    try:
+        sb = get_supabase_admin()
+        query = sb.table("attendance").select("*, profiles!student_id(full_name, reg_number)").eq("teacher_id", current_user["id"]).order("date", desc=True)
+        if date:
+            query = query.eq("date", date)
+        result = query.execute()
+        return result.data or []
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/internal-marks", response_model=dict)
+async def add_internal_marks(
+    marks_data: list, # list of student_id, subject, marks, total_marks
+    current_user: dict = Depends(require_role("teacher"))
+):
+    """Batch insert/update internal marks."""
+    try:
+        sb = get_supabase_admin()
+        for m in marks_data:
+            data = {
+                "student_id": m.get("student_id"),
+                "teacher_id": current_user["id"],
+                "subject": m.get("subject"),
+                "marks": m.get("marks"),
+                "total_marks": m.get("total_marks")
+            }
+            existing = sb.table("internal_marks").select("id").eq("student_id", data["student_id"]).eq("subject", data["subject"]).execute()
+            if existing.data:
+                sb.table("internal_marks").update(data).eq("id", existing.data[0]["id"]).execute()
+            else:
+                sb.table("internal_marks").insert(data).execute()
+
+        return {"message": "Internal marks updated successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/internal-marks", response_model=list)
+async def get_internal_marks(
+    subject: str = None,
+    current_user: dict = Depends(require_role("teacher"))
+):
+    """Get internal marks. Filter by subject if provided."""
+    try:
+        sb = get_supabase_admin()
+        query = sb.table("internal_marks").select("*, profiles!student_id(full_name, reg_number)").eq("teacher_id", current_user["id"]).order("subject")
+        if subject:
+            query = query.eq("subject", subject)
+        result = query.execute()
+        return result.data or []
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

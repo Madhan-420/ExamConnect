@@ -4,7 +4,7 @@ Dashboard stats, user management (CRUD), system oversight
 """
 
 from fastapi import APIRouter, HTTPException, status, Depends, Query
-from app.models.schemas import UserRegister, UserResponse, UserUpdate, AdminDashboard
+from app.models.schemas import UserRegister, UserResponse, UserUpdate, AdminDashboard, FeedbackResponse
 from app.services.supabase import get_supabase_admin
 from app.middleware.auth import require_role
 from typing import Optional
@@ -115,7 +115,7 @@ async def update_user(
     update: UserUpdate,
     current_user: dict = Depends(require_role("admin"))
 ):
-    """Update a user's profile (role, name, department, etc.)."""
+    """Update a user's profile (role, name, department, mentor_id, etc.)."""
     try:
         sb = get_supabase_admin()
 
@@ -126,6 +126,8 @@ async def update_user(
         if not update_data:
             raise HTTPException(status_code=400, detail="No fields to update")
 
+        # Automatically handled by dict dumping: if mentor_id is not None, it updates it.
+
         result = sb.table("profiles").update(update_data).eq("id", user_id).execute()
 
         return {"message": "User updated successfully"}
@@ -134,6 +136,32 @@ async def update_user(
         raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to update user: {str(e)}")
+
+
+@router.put("/users/{user_id}/mentor", response_model=dict)
+async def assign_mentor(
+    user_id: str,
+    mentor_id: str = Query(..., description="ID of the teacher to assign as mentor"),
+    current_user: dict = Depends(require_role("admin"))
+):
+    """Assign a teacher as a mentor to a student."""
+    try:
+        sb = get_supabase_admin()
+
+        # Check if mentor is a teacher
+        mentor = sb.table("profiles").select("role").eq("id", mentor_id).single().execute()
+        if not mentor.data or mentor.data["role"] != "teacher":
+            raise HTTPException(status_code=400, detail="Mentor must be a teacher")
+
+        # Update profile
+        sb.table("profiles").update({"mentor_id": mentor_id}).eq("id", user_id).execute()
+
+        return {"message": "Mentor assigned successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to assign mentor: {str(e)}")
+
 
 
 @router.delete("/users/{user_id}", response_model=dict)
@@ -161,6 +189,27 @@ async def delete_user(
         raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to delete user: {str(e)}")
+
+
+# ─── Admin Analytics ───
+
+@router.get("/feedbacks", response_model=list)
+async def view_feedbacks(current_user: dict = Depends(require_role("admin"))):
+    """View all feedbacks/complaints."""
+    try:
+        sb = get_supabase_admin()
+        
+        feedbacks = sb.table("feedbacks").select("*").order("created_at", desc=True).execute()
+        fb_list = feedbacks.data or []
+        
+        for fb in fb_list:
+            user = sb.table("profiles").select("full_name").eq("id", fb["user_id"]).single().execute()
+            fb["user_name"] = user.data.get("full_name", "Unknown") if user.data else "Unknown"
+
+        return fb_list
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ─── Admin Analytics ───

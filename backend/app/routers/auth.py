@@ -152,3 +152,17 @@ def login(credentials: UserLogin):
 def get_me(current_user: dict = Depends(get_current_user)):
     """Get current user profile."""
     return current_user
+
+
+@router.post("/ping", response_model=dict)
+def ping(current_user: dict = Depends(get_current_user)):
+    """Update last_seen timestamp."""
+    try:
+        sb = get_supabase_admin()
+        from datetime import datetime, timezone
+        now_iso = datetime.now(timezone.utc).isoformat()
+        sb.table("profiles").update({"last_seen": now_iso}).eq("id", current_user["id"]).execute()
+        return {"message": "ping successful"}
+    except Exception as e:
+        # Ping is non-critical, so we just log or return soft error
+        return {"message": "ping failed", "error": str(e)}

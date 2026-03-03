@@ -63,11 +63,23 @@ async def student_dashboard(current_user: dict = Depends(require_role("student")
 
 @router.get("/exams", response_model=list)
 async def list_available_exams(current_user: dict = Depends(require_role("student"))):
-    """List all scheduled/active exams for students."""
+    """List all scheduled/active exams for students, filtered by mentor."""
     try:
         sb = get_supabase_admin()
-        result = sb.table("exams").select("*").in_("status", ["scheduled", "active"]).order("scheduled_at").execute()
+        
+        # Get student's mentor
+        student = sb.table("profiles").select("mentor_id").eq("id", current_user["id"]).single().execute()
+        mentor_id = student.data.get("mentor_id") if student.data else None
 
+        # Filter exams by mentor_id
+        query = sb.table("exams").select("*").in_("status", ["scheduled", "active"]).order("scheduled_at")
+        if mentor_id:
+            query = query.eq("teacher_id", mentor_id)
+        else:
+            # If no mentor assigned, maybe return empty or all? Let's return none as per strict requirements.
+            return []
+
+        result = query.execute()
         exams = result.data or []
 
         # Mark which exams student already submitted
