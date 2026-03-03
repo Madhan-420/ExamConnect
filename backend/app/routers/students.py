@@ -238,3 +238,24 @@ async def get_results(current_user: dict = Depends(require_role("student"))):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@router.post("/feedbacks", response_model=dict)
+async def submit_feedback(
+    feedback: dict, 
+    current_user: dict = Depends(require_role("student"))
+):
+    """Submit a feedback/complaint as a student."""
+    try:
+        sb = get_supabase_admin()
+        data = {
+            "user_id": current_user["id"],
+            "subject": feedback.get("subject"),
+            "message": feedback.get("message"),
+            "status": "pending"
+        }
+        sb.table("feedbacks").insert(data).execute()
+        return {"message": "Feedback submitted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+

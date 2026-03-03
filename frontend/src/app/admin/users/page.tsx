@@ -140,7 +140,14 @@ export default function ManageUsersPage() {
                         <tbody>
                             {filtered.map((user) => (
                                 <tr key={user.id}>
-                                    <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{user.full_name}</td>
+                                    <td style={{ fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <div style={{
+                                            width: 8, height: 8, borderRadius: '50%',
+                                            background: user.last_seen && (new Date().getTime() - new Date(user.last_seen).getTime() < 120000) ? '#10b981' : '#6b7280',
+                                            boxShadow: user.last_seen && (new Date().getTime() - new Date(user.last_seen).getTime() < 120000) ? '0 0 8px #10b981' : 'none'
+                                        }} title={user.last_seen && (new Date().getTime() - new Date(user.last_seen).getTime() < 120000) ? 'Online' : 'Offline'} />
+                                        {user.full_name}
+                                    </td>
                                     <td>{user.email}</td>
                                     <td><span className={`badge badge-${user.role}`}>{user.role}</span></td>
                                     <td>{user.department || '—'}</td>
@@ -246,6 +253,6 @@ export default function ManageUsersPage() {
                     </motion.div>
                 )}
             </AnimatePresence>
-        </DashboardLayout>
+        </DashboardLayout >
     );
 }

@@ -3,14 +3,14 @@ Teacher Router
 Exam CRUD, question management, submission review, result publishing
 """
 
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, Body
 from app.models.schemas import (
     ExamCreate, ExamUpdate, ExamResponse, QuestionCreate,
     EvaluateSubmission, TeacherDashboard
 )
 from app.services.supabase import get_supabase_admin
 from app.middleware.auth import require_role
-from typing import List
+from typing import List, Dict, Any
 
 router = APIRouter()
 
@@ -433,7 +433,7 @@ async def get_teacher_feedbacks(current_user: dict = Depends(require_role("teach
 
 @router.post("/attendance", response_model=dict)
 async def mark_attendance(
-    attendance_data: list, # List of dicts: student_id, date, status, remarks
+    attendance_data: List[Dict[str, Any]] = Body(...), # List of dicts: student_id, date, status, remarks
     current_user: dict = Depends(require_role("teacher"))
 ):
     """Batch insert/update attendance for students."""
@@ -483,7 +483,7 @@ async def get_attendance(
 
 @router.post("/internal-marks", response_model=dict)
 async def add_internal_marks(
-    marks_data: list, # list of student_id, subject, marks, total_marks
+    marks_data: List[Dict[str, Any]] = Body(...), # list of student_id, subject, marks, total_marks
     current_user: dict = Depends(require_role("teacher"))
 ):
     """Batch insert/update internal marks."""

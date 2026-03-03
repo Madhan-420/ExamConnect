@@ -48,6 +48,7 @@ const roleNavItems = {
         { href: '/student/dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { href: '/student/exams', label: 'Exams', icon: BookOpen },
         { href: '/student/results', label: 'Results', icon: Trophy },
+        { href: '/student/feedbacks', label: 'Complaints', icon: MessageSquare },
         { href: '/student/ai-assistant', label: 'AI Study Assistant', icon: Sparkles },
         { href: '/student/chat', label: 'Group Chat', icon: MessageSquare },
         { href: '/student/live-classes', label: 'Live Classes', icon: Video },
