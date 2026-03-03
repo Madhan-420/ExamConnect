@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import DashboardLayout from '../../../components/DashboardLayout';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../context/AuthContext';
-import { Send, Users, MessageSquare } from 'lucide-react';
+import { Send, Users, MessageSquare, Wifi, WifiOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function StudentChatPage() {
@@ -12,7 +12,9 @@ export default function StudentChatPage() {
     const [messages, setMessages] = useState<any[]>([]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(true);
+    const [connected, setConnected] = useState(true);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const lastFetchTimeRef = useRef<string>(new Date(0).toISOString());
 
     const scrollToBottom = () => {
         setTimeout(() => {
@@ -20,58 +22,93 @@ export default function StudentChatPage() {
         }, 100);
     };
 
+    // Merge new messages without duplicates
+    const mergeMessages = (prev: any[], newMsgs: any[]) => {
+        const existingIds = new Set(prev.map(m => String(m.id)));
+        const toAdd = newMsgs.filter(m => !existingIds.has(String(m.id)));
+        if (toAdd.length === 0) return prev;
+        return [...prev, ...toAdd];
+    };
+
     useEffect(() => {
         if (!profile) return;
 
-        const fetchMessages = async () => {
+        // Initial full fetch
+        const fetchAll = async () => {
             setLoading(true);
             const { data } = await supabase
                 .from('group_messages')
                 .select('*, profiles(full_name, role)')
                 .order('created_at', { ascending: true })
                 .limit(100);
-            if (data) {
+            if (data && data.length > 0) {
                 setMessages(data);
+                lastFetchTimeRef.current = data[data.length - 1].created_at;
                 scrollToBottom();
             }
             setLoading(false);
         };
+        fetchAll();
 
-        fetchMessages();
-
+        // Supabase realtime (works when not blocked)
         const subscription = supabase
-            .channel('group_messages_channel')
+            .channel('group_messages_student')
             .on('postgres_changes', {
                 event: 'INSERT',
                 schema: 'public',
                 table: 'group_messages',
-            }, async (payload) => {
-                const newMessage = payload.new as any;
-                // Skip if we already optimistically added this message
+            }, (payload) => {
+                const newMsg = payload.new as any;
+                setConnected(true);
                 setMessages(prev => {
-                    const isDuplicate = prev.some(
-                        m => m.sender_id === newMessage.sender_id &&
-                            m.content === newMessage.content &&
-                            m.id.toString().startsWith('temp-')
+                    // Replace temp optimistic message or add new one
+                    const hasTemp = prev.some(
+                        m => String(m.id).startsWith('temp-') &&
+                            m.sender_id === newMsg.sender_id &&
+                            m.content === newMsg.content
                     );
-                    if (isDuplicate) {
-                        // Replace the temp message with the real one
+                    if (hasTemp) {
                         return prev.map(m =>
-                            (m.sender_id === newMessage.sender_id &&
-                                m.content === newMessage.content &&
-                                m.id.toString().startsWith('temp-'))
-                                ? { ...newMessage, profiles: m.profiles }
+                            String(m.id).startsWith('temp-') &&
+                                m.sender_id === newMsg.sender_id &&
+                                m.content === newMsg.content
+                                ? { ...newMsg, profiles: m.profiles }
                                 : m
                         );
                     }
-                    return [...prev, { ...newMessage }];
+                    const existingIds = new Set(prev.map(m => String(m.id)));
+                    if (existingIds.has(String(newMsg.id))) return prev;
+                    return [...prev, newMsg];
                 });
+                lastFetchTimeRef.current = newMsg.created_at;
                 scrollToBottom();
             })
-            .subscribe();
+            .subscribe((status) => {
+                setConnected(status === 'SUBSCRIBED');
+            });
+
+        // Polling fallback — fetch new messages every 4 seconds
+        // This ensures other users' messages appear even when realtime is blocked
+        const pollInterval = setInterval(async () => {
+            const since = lastFetchTimeRef.current;
+            const { data } = await supabase
+                .from('group_messages')
+                .select('*, profiles(full_name, role)')
+                .gt('created_at', since)
+                .order('created_at', { ascending: true });
+            if (data && data.length > 0) {
+                lastFetchTimeRef.current = data[data.length - 1].created_at;
+                setMessages(prev => {
+                    const merged = mergeMessages(prev, data);
+                    if (merged !== prev) scrollToBottom();
+                    return merged;
+                });
+            }
+        }, 4000);
 
         return () => {
             supabase.removeChannel(subscription);
+            clearInterval(pollInterval);
         };
     }, [profile]);
 
@@ -80,7 +117,7 @@ export default function StudentChatPage() {
         const currentInput = input.trim();
         setInput('');
 
-        // Optimistically add to UI immediately (works even if realtime is blocked)
+        // Optimistically add to UI immediately
         const tempId = `temp-${Date.now()}`;
         setMessages(prev => [...prev, {
             id: tempId,
@@ -96,7 +133,6 @@ export default function StudentChatPage() {
             content: currentInput,
         }]);
     };
-
 
     return (
         <DashboardLayout>
@@ -127,11 +163,12 @@ export default function StudentChatPage() {
                 }}>
                     <Users size={20} color="#60a5fa" />
                     <h3 style={{ fontSize: '1rem', fontWeight: 600 }}>Global Student Chat</h3>
-                    <span style={{
-                        marginLeft: 'auto', padding: '3px 10px', borderRadius: 12,
-                        background: 'rgba(59,130,246,0.15)', color: '#60a5fa',
-                        fontSize: '0.75rem', fontWeight: 600,
-                    }}>Text Only</span>
+                    <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', fontWeight: 600 }}>
+                        {connected
+                            ? <><Wifi size={13} color="#4ade80" /><span style={{ color: '#4ade80' }}>Live</span></>
+                            : <><WifiOff size={13} color="#f97316" /><span style={{ color: '#f97316' }}>Polling</span></>
+                        }
+                    </span>
                 </div>
 
                 {/* Messages */}
@@ -152,6 +189,7 @@ export default function StudentChatPage() {
                     ) : (
                         messages.map((msg) => {
                             const isMe = msg.sender_id === profile?.id;
+                            const isTemp = String(msg.id).startsWith('temp-');
                             return (
                                 <motion.div
                                     key={msg.id}
@@ -162,6 +200,7 @@ export default function StudentChatPage() {
                                         maxWidth: '70%',
                                         display: 'flex', flexDirection: 'column',
                                         alignItems: isMe ? 'flex-end' : 'flex-start',
+                                        opacity: isTemp ? 0.75 : 1,
                                     }}
                                 >
                                     {!isMe && (
@@ -186,7 +225,7 @@ export default function StudentChatPage() {
                                         {msg.content}
                                     </div>
                                     <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4, paddingLeft: 4, paddingRight: 4 }}>
-                                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        {isTemp ? 'Sending…' : new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                     </span>
                                 </motion.div>
                             );
@@ -195,7 +234,7 @@ export default function StudentChatPage() {
                     <div ref={messagesEndRef} />
                 </div>
 
-                {/* Input — students cannot upload files */}
+                {/* Input */}
                 <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-glass)', background: 'rgba(0,0,0,0.2)' }}>
                     <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                         <input
@@ -203,7 +242,7 @@ export default function StudentChatPage() {
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                            placeholder="Type a message..."
+                            placeholder="Type a message…"
                             style={{
                                 flex: 1, background: 'rgba(255,255,255,0.05)',
                                 border: '1px solid var(--border-glass)',

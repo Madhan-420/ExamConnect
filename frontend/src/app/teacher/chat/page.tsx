@@ -23,24 +23,34 @@ export default function TeacherChatPage() {
         }, 100);
     };
 
+    const [connected, setConnected] = React.useState(true);
+    const lastFetchTimeRef = useRef<string>(new Date(0).toISOString());
+
+    const mergeMessages = (prev: any[], newMsgs: any[]) => {
+        const existingIds = new Set(prev.map(m => String(m.id)));
+        const toAdd = newMsgs.filter(m => !existingIds.has(String(m.id)));
+        if (toAdd.length === 0) return prev;
+        return [...prev, ...toAdd];
+    };
+
     useEffect(() => {
         if (!profile) return;
 
-        const fetchMessages = async () => {
+        const fetchAll = async () => {
             setLoading(true);
             const { data } = await supabase
                 .from('group_messages')
                 .select('*, profiles(full_name, role)')
                 .order('created_at', { ascending: true })
                 .limit(100);
-            if (data) {
+            if (data && data.length > 0) {
                 setMessages(data);
+                lastFetchTimeRef.current = data[data.length - 1].created_at;
                 scrollToBottom();
             }
             setLoading(false);
         };
-
-        fetchMessages();
+        fetchAll();
 
         const subscription = supabase
             .channel('group_messages_teacher_channel')
@@ -48,23 +58,59 @@ export default function TeacherChatPage() {
                 event: 'INSERT',
                 schema: 'public',
                 table: 'group_messages',
-            }, async (payload) => {
-                const newMessage = payload.new as any;
-                const { data: profileData } = await supabase
-                    .from('profiles')
-                    .select('full_name, role')
-                    .eq('id', newMessage.sender_id)
-                    .single();
-                newMessage.profiles = profileData;
-                setMessages(prev => [...prev, newMessage]);
+            }, (payload) => {
+                const newMsg = payload.new as any;
+                setConnected(true);
+                setMessages(prev => {
+                    const hasTemp = prev.some(
+                        m => String(m.id).startsWith('temp-') &&
+                            m.sender_id === newMsg.sender_id &&
+                            m.content === newMsg.content
+                    );
+                    if (hasTemp) {
+                        return prev.map(m =>
+                            String(m.id).startsWith('temp-') &&
+                                m.sender_id === newMsg.sender_id &&
+                                m.content === newMsg.content
+                                ? { ...newMsg, profiles: m.profiles }
+                                : m
+                        );
+                    }
+                    const existingIds = new Set(prev.map(m => String(m.id)));
+                    if (existingIds.has(String(newMsg.id))) return prev;
+                    return [...prev, newMsg];
+                });
+                lastFetchTimeRef.current = newMsg.created_at;
                 scrollToBottom();
             })
-            .subscribe();
+            .subscribe((status) => {
+                setConnected(status === 'SUBSCRIBED');
+            });
+
+        // Polling fallback — fetch new messages every 4 seconds
+        const pollInterval = setInterval(async () => {
+            const since = lastFetchTimeRef.current;
+            const { data } = await supabase
+                .from('group_messages')
+                .select('*, profiles(full_name, role)')
+                .gt('created_at', since)
+                .order('created_at', { ascending: true });
+            if (data && data.length > 0) {
+                lastFetchTimeRef.current = data[data.length - 1].created_at;
+                setMessages(prev => {
+                    const merged = mergeMessages(prev, data);
+                    if (merged !== prev) scrollToBottom();
+                    return merged;
+                });
+            }
+        }, 4000);
 
         return () => {
             supabase.removeChannel(subscription);
+            clearInterval(pollInterval);
         };
     }, [profile]);
+
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
