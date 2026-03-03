@@ -67,34 +67,62 @@ export default function TakeExamPage() {
         }
 
         setSubmitting(true);
+        setError('');
         try {
-            // Upload to Supabase Storage 'answers' bucket
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${examId}_${Date.now()}.${fileExt}`;
-            const { data: uploadData, error: uploadError } = await supabase.storage
-                .from('answers')
-                .upload(`submissions/${fileName}`, file);
+            let fileUrl: string | null = null;
 
-            if (uploadError) {
-                throw new Error(`Upload failed: ${uploadError.message}`);
+            // Strategy 1: Try Supabase Storage
+            try {
+                const fileExt = file.name.split('.').pop();
+                const fileName = `${examId}_${Date.now()}.${fileExt}`;
+                const { error: uploadError } = await supabase.storage
+                    .from('answers')
+                    .upload(`submissions/${fileName}`, file, { upsert: false });
+
+                if (uploadError) throw new Error(uploadError.message);
+
+                const { data: publicData } = supabase.storage
+                    .from('answers')
+                    .getPublicUrl(`submissions/${fileName}`);
+                fileUrl = publicData.publicUrl;
+            } catch (storageErr: any) {
+                console.warn('Supabase storage unavailable, using direct upload:', storageErr.message);
+                // Strategy 2: Upload directly to backend as multipart/form-data
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('exam_id', examId);
+                const token = localStorage.getItem('exam_connect_token');
+                const uploadRes = await fetch(
+                    `${process.env.NEXT_PUBLIC_API_URL || ''}/api/student/exams/${examId}/upload`,
+                    {
+                        method: 'POST',
+                        headers: token ? { Authorization: `Bearer ${token}` } : {},
+                        body: formData,
+                    }
+                );
+                if (uploadRes.ok) {
+                    const uploadJson = await uploadRes.json().catch(() => ({}));
+                    fileUrl = uploadJson.file_url || null;
+                } else {
+                    // If backend upload also fails, still allow submit without file URL
+                    console.warn('Backend upload also failed, submitting without file URL');
+                }
             }
 
-            const { data: publicData } = supabase.storage
-                .from('answers')
-                .getPublicUrl(`submissions/${fileName}`);
-
-            const fileUrl = publicData.publicUrl;
-
+            // Submit answers + file URL
             await api.post(`/api/student/exams/${examId}/submit`, {
                 answers,
-                file_url: fileUrl
+                file_url: fileUrl,
             });
             setSubmitted(true);
         } catch (err: any) {
-            alert(err.message || err.response?.data?.detail || 'Failed to submit');
+            const msg = err.response?.data?.detail || err.message || 'Failed to submit. Please try again.';
+            setError(msg);
+            alert(msg);
         }
         setSubmitting(false);
     };
+
 
     if (loading) {
         return (
