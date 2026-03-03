@@ -19,6 +19,8 @@ export default function EvaluatePage() {
     const [submitting, setSubmitting] = useState(false);
     const [expanded, setExpanded] = useState<Set<string>>(new Set());
     const [errorMsg, setErrorMsg] = useState('');
+    const [publishing, setPublishing] = useState(false);
+    const [publishDone, setPublishDone] = useState(false);
 
     useEffect(() => {
         const load = async () => {
@@ -36,6 +38,18 @@ export default function EvaluatePage() {
         };
         load();
     }, [examId]);
+
+    const handlePublishResults = async () => {
+        if (!confirm('Publish all results for this exam? Students will see their official grades.')) return;
+        setPublishing(true);
+        try {
+            await api.post(`/api/teacher/exams/${examId}/publish-results`);
+            setPublishDone(true);
+        } catch (err: any) {
+            alert(err.response?.data?.detail || 'Failed to publish results');
+        }
+        setPublishing(false);
+    };
 
     const toggleExpand = (id: string) => {
         setExpanded(prev => {
@@ -89,14 +103,26 @@ export default function EvaluatePage() {
                     <h1 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: 6 }}>Evaluate Submissions</h1>
                     <p style={{ color: 'var(--text-secondary)' }}>Review and grade student answers</p>
                 </div>
-                <button onClick={handleDownloadSubmissions}
-                    style={{
-                        display: 'flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 10,
-                        background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)',
-                        color: '#a78bfa', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600,
-                    }}>
-                    <Download size={16} /> Download All Submissions
-                </button>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <button onClick={handleDownloadSubmissions}
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 10,
+                            background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)',
+                            color: '#a78bfa', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600,
+                        }}>
+                        <Download size={16} /> Download All
+                    </button>
+                    <button onClick={handlePublishResults} disabled={publishing || publishDone}
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 10,
+                            background: publishDone ? 'rgba(74,222,128,0.1)' : 'rgba(249,115,22,0.12)',
+                            border: `1px solid ${publishDone ? 'rgba(74,222,128,0.3)' : 'rgba(249,115,22,0.3)'}`,
+                            color: publishDone ? '#4ade80' : '#f97316', cursor: publishDone ? 'default' : 'pointer',
+                            fontSize: '0.9rem', fontWeight: 600, opacity: publishing ? 0.7 : 1,
+                        }}>
+                        <Award size={16} /> {publishDone ? '✓ Results Published' : publishing ? 'Publishing…' : 'Publish Results'}
+                    </button>
+                </div>
             </div>
 
             {loading ? (

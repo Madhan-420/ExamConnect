@@ -205,12 +205,13 @@ async def upload_answer_file(exam_id: str, current_user: dict = Depends(require_
 
 @router.get("/results", response_model=list)
 async def get_results(current_user: dict = Depends(require_role("student"))):
-    """Get all published results for the current student."""
+    """Get all results for the current student (evaluated or published)."""
     try:
         sb = get_supabase_admin()
         student_id = current_user["id"]
 
-        results = sb.table("results").select("*").eq("student_id", student_id).eq("published", True).order("evaluated_at", desc=True).execute()
+        # Return all results — both published and unpublished (student can see their score)
+        results = sb.table("results").select("*").eq("student_id", student_id).order("evaluated_at", desc=True).execute()
 
         result_list = results.data or []
 
@@ -224,3 +225,4 @@ async def get_results(current_user: dict = Depends(require_role("student"))):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
