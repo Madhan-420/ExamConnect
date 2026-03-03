@@ -300,6 +300,7 @@ async def evaluate_submission(
 ):
     """Grade a student submission."""
     try:
+        from datetime import datetime, timezone
         sb = get_supabase_admin()
 
         # Get submission
@@ -313,47 +314,40 @@ async def evaluate_submission(
             raise HTTPException(status_code=403, detail="Not authorized to evaluate this submission")
 
         total_marks = exam.data["total_marks"]
-        if evaluation.marks_obtained > total_marks:
-            raise HTTPException(status_code=400, detail=f"Marks cannot exceed total marks ({total_marks})")
+        marks = evaluation.marks_obtained
+        if marks > total_marks:
+            raise HTTPException(status_code=400, detail=f"Marks ({marks}) cannot exceed total marks ({total_marks})")
 
-        percentage = round((evaluation.marks_obtained / total_marks) * 100, 2)
+        percentage = round((marks / total_marks) * 100, 2) if total_marks > 0 else 0
 
-        # Determine grade
-        if percentage >= 90:
-            grade = "A+"
-        elif percentage >= 80:
-            grade = "A"
-        elif percentage >= 70:
-            grade = "B+"
-        elif percentage >= 60:
-            grade = "B"
-        elif percentage >= 50:
-            grade = "C"
-        elif percentage >= 40:
-            grade = "D"
-        else:
-            grade = "F"
+        grade = "A+" if percentage >= 90 else "A" if percentage >= 80 else "B+" if percentage >= 70 else "B" if percentage >= 60 else "C" if percentage >= 50 else "D" if percentage >= 40 else "F"
 
-        # Insert/update result
+        now_iso = datetime.now(timezone.utc).isoformat()
+
         result_data = {
             "exam_id": sub.data["exam_id"],
             "student_id": sub.data["student_id"],
             "submission_id": submission_id,
-            "marks_obtained": evaluation.marks_obtained,
+            "marks_obtained": marks,
             "total_marks": total_marks,
             "percentage": percentage,
             "grade": grade,
             "remarks": evaluation.remarks,
             "evaluated_by": current_user["id"],
-            "published": False
+            "evaluated_at": now_iso,
+            "published": False,
         }
 
-        # Check if result already exists
-        existing = sb.table("results").select("id").eq("submission_id", submission_id).execute()
-        if existing.data:
-            sb.table("results").update(result_data).eq("submission_id", submission_id).execute()
-        else:
-            sb.table("results").insert(result_data).execute()
+        # Use upsert to avoid insert/update conflicts
+        try:
+            sb.table("results").upsert(result_data, on_conflict="submission_id").execute()
+        except Exception:
+            # Fallback: try plain insert, then update
+            existing = sb.table("results").select("id").eq("submission_id", submission_id).execute()
+            if existing.data:
+                sb.table("results").update(result_data).eq("submission_id", submission_id).execute()
+            else:
+                sb.table("results").insert(result_data).execute()
 
         # Update submission status
         sb.table("submissions").update({"status": "evaluated"}).eq("id", submission_id).execute()
@@ -363,7 +357,9 @@ async def evaluate_submission(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        import traceback
+        raise HTTPException(status_code=400, detail=f"Evaluation failed: {str(e)}\n{traceback.format_exc()}") 
+
 
 
 @router.post("/exams/{exam_id}/publish-results", response_model=dict)
