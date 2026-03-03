@@ -17,7 +17,9 @@ import {
     ChevronRight,
     Menu,
     X,
-    Sparkles, // Added for AI Assistant Icon
+    Sparkles,
+    MessageSquare,
+    Video,
 } from 'lucide-react';
 
 const roleNavItems = {
@@ -29,12 +31,16 @@ const roleNavItems = {
     teacher: [
         { href: '/teacher/dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { href: '/teacher/exams', label: 'My Exams', icon: ClipboardList },
+        { href: '/teacher/chat', label: 'Group Chat', icon: MessageSquare },
+        { href: '/teacher/live-classes', label: 'Live Classes', icon: Video },
     ],
     student: [
         { href: '/student/dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { href: '/student/exams', label: 'Exams', icon: BookOpen },
         { href: '/student/results', label: 'Results', icon: Trophy },
-        { href: '/student/ai-assistant', label: 'AI Study Assistant', icon: Sparkles }, // Added new dedicated page route
+        { href: '/student/ai-assistant', label: 'AI Study Assistant', icon: Sparkles },
+        { href: '/student/chat', label: 'Group Chat', icon: MessageSquare },
+        { href: '/student/live-classes', label: 'Live Classes', icon: Video },
     ],
 };
 
