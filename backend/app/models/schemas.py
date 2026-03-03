@@ -114,6 +114,8 @@ class QuestionCreate(BaseModel):
     correct_answer: Optional[str] = None
     marks: int = Field(ge=1)
     order_num: int = Field(ge=1)
+    file_url: Optional[str] = None    # Teacher-attached file for this question
+    file_name: Optional[str] = None
 
 
 class QuestionResponse(BaseModel):

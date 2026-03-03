@@ -158,7 +158,8 @@ async def add_questions(
             if qd.get("options"):
                 import json
                 qd["options"] = json.dumps(qd["options"])
-            question_data.append(qd)
+            # Keep file_url/file_name if present
+            question_data.append({k: v for k, v in qd.items() if v is not None})
 
         result = sb.table("questions").insert(question_data).execute()
         return {"message": f"{len(questions)} questions added", "questions": result.data or []}
@@ -180,7 +181,61 @@ async def get_questions(exam_id: str, current_user: dict = Depends(require_role(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ──── Exam Status Management ────
+from fastapi.responses import PlainTextResponse, JSONResponse as FJSONResponse
+import json as _json
+
+@router.get("/exams/{exam_id}/questions/download")
+async def download_questions(exam_id: str, current_user: dict = Depends(require_role("teacher"))):
+    """Download all questions for an exam as a plaintext file."""
+    try:
+        sb = get_supabase_admin()
+        exam = sb.table("exams").select("*").eq("id", exam_id).eq("teacher_id", current_user["id"]).single().execute()
+        if not exam.data:
+            raise HTTPException(status_code=404, detail="Exam not found")
+        questions = sb.table("questions").select("*").eq("exam_id", exam_id).order("order_num").execute()
+        lines = [f"EXAM: {exam.data['title']}\nSubject: {exam.data['subject']}\nDuration: {exam.data['duration_minutes']} minutes\nTotal Marks: {exam.data['total_marks']}\n{'='*60}\n"]
+        for q in (questions.data or []):
+            opts = ""
+            if q.get("options"):
+                opts_data = q["options"] if isinstance(q["options"], list) else _json.loads(q["options"])
+                opts = "\n".join(f"   {chr(65+i)}) {o}" for i, o in enumerate(opts_data))
+                opts = f"\n{opts}"
+            file_ref = f"\n   [Attached: {q.get('file_name', 'file')} - {q.get('file_url', '')}]" if q.get('file_url') else ""
+            lines.append(f"Q{q['order_num']}. [{q['question_type'].upper()}] ({q['marks']} marks)\n{q['question_text']}{opts}{file_ref}\n")
+        content = "\n".join(lines)
+        from fastapi.responses import Response
+        return Response(content=content, media_type="text/plain",
+            headers={"Content-Disposition": f"attachment; filename=exam_{exam_id}_questions.txt"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/exams/{exam_id}/submissions/download")
+async def download_submissions(exam_id: str, current_user: dict = Depends(require_role("teacher"))):
+    """Download all submissions for an exam as JSON."""
+    try:
+        sb = get_supabase_admin()
+        exam = sb.table("exams").select("id").eq("id", exam_id).eq("teacher_id", current_user["id"]).single().execute()
+        if not exam.data:
+            raise HTTPException(status_code=404, detail="Exam not found")
+        subs = sb.table("submissions").select("*").eq("exam_id", exam_id).order("submitted_at", desc=True).execute()
+        submissions = subs.data or []
+        for sub in submissions:
+            student = sb.table("profiles").select("full_name, email, reg_number").eq("id", sub["student_id"]).single().execute()
+            sub["student"] = student.data or {}
+        content = _json.dumps(submissions, indent=2, default=str)
+        from fastapi.responses import Response
+        return Response(content=content, media_type="application/json",
+            headers={"Content-Disposition": f"attachment; filename=exam_{exam_id}_submissions.json"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
 
 @router.post("/exams/{exam_id}/publish", response_model=dict)
 async def publish_exam(
