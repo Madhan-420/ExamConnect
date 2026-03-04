@@ -221,7 +221,7 @@ async def view_all_attendance(
     try:
         sb = get_supabase_admin()
         
-        query = sb.table("attendance").select("id, student_id, date, status, remarks, created_at, profiles(full_name, reg_number)").order("date", desc=True)
+        query = sb.table("attendance").select("id, student_id, date, status, remarks, created_at, profiles!student_id(full_name, reg_number)").order("date", desc=True)
         
         if date:
             query = query.eq("date", date)

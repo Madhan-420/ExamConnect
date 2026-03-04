@@ -450,15 +450,17 @@ async def mark_attendance(
                 "remarks": a.get("remarks")
             })
 
-        # Upsert by student_id and date
-        # Assuming the supabase UPSERT config is properly handled or simple insert is fine 
-        # For simplicity, if conflict on unique constraint, we'll suggest ignoring or replacing.
-        for data in insert_data:
-            existing = sb.table("attendance").select("id").eq("student_id", data["student_id"]).eq("date", data["date"]).execute()
-            if existing.data:
-                sb.table("attendance").update(data).eq("id", existing.data[0]["id"]).execute()
-            else:
-                sb.table("attendance").insert(data).execute()
+        # Batch upsert by student_id and date
+        try:
+            sb.table("attendance").upsert(insert_data, on_conflict="student_id,date").execute()
+        except Exception:
+            # Fallback for Python client versions or DBs that don't allow batch upsert nicely
+            for data in insert_data:
+                existing = sb.table("attendance").select("id").eq("student_id", data["student_id"]).eq("date", data["date"]).execute()
+                if existing.data:
+                    sb.table("attendance").update(data).eq("id", existing.data[0]["id"]).execute()
+                else:
+                    sb.table("attendance").insert(data).execute()
                 
         return {"message": "Attendance marked successfully"}
     except Exception as e:
