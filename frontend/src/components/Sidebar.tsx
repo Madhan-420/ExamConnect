@@ -22,17 +22,22 @@ import {
     Video,
     BarChart2,
     GraduationCap,
-    Award
+    Award,
+    Newspaper,
+    Globe
 } from 'lucide-react';
 
 const roleNavItems = {
     admin: [
         { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { href: '/admin/users', label: 'Manage Users', icon: Users },
+        { href: '/admin/attendance', label: 'Attendance', icon: FileText },
         { href: '/admin/feedbacks', label: 'Complaints', icon: MessageSquare },
         { href: '/admin/exams', label: 'Exam Monitor', icon: FileText },
         { href: '/admin/students', label: 'Student Performance', icon: GraduationCap },
         { href: '/admin/teachers', label: 'Teacher Activity', icon: BarChart2 },
+        { href: '/admin/news', label: 'News Manager', icon: Newspaper },
+        { href: '/admin/au-news', label: 'AU Updates', icon: Globe },
     ],
     teacher: [
         { href: '/teacher/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -43,6 +48,7 @@ const roleNavItems = {
         { href: '/teacher/feedbacks', label: 'Complaints', icon: MessageSquare },
         { href: '/teacher/chat', label: 'Group Chat', icon: MessageSquare },
         { href: '/teacher/live-classes', label: 'Live Classes', icon: Video },
+        { href: '/teacher/au-news', label: 'AU Updates', icon: Globe },
     ],
     student: [
         { href: '/student/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -52,6 +58,7 @@ const roleNavItems = {
         { href: '/student/ai-assistant', label: 'AI Study Assistant', icon: Sparkles },
         { href: '/student/chat', label: 'Group Chat', icon: MessageSquare },
         { href: '/student/live-classes', label: 'Live Classes', icon: Video },
+        { href: '/student/au-news', label: 'AU Updates', icon: Globe },
     ],
 };
 

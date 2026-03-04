@@ -156,3 +156,27 @@ CREATE POLICY "Users can insert group messages" ON group_messages FOR INSERT WIT
 ALTER TABLE live_classes ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Teachers manage own live classes" ON live_classes FOR ALL USING (teacher_id = auth.uid());
 CREATE POLICY "Everyone reads active live classes" ON live_classes FOR SELECT USING (is_active = TRUE);
+
+-- ====================================================
+-- News & Announcements
+-- ====================================================
+CREATE TABLE IF NOT EXISTS news_announcements (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    priority TEXT DEFAULT 'normal' CHECK (priority IN ('normal', 'important', 'urgent')),
+    is_active BOOLEAN DEFAULT TRUE,
+    created_by UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    expires_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_news_active ON news_announcements(is_active);
+CREATE INDEX IF NOT EXISTS idx_news_created ON news_announcements(created_at DESC);
+
+ALTER TABLE news_announcements ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Admin full access to news" ON news_announcements FOR ALL USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+);
+CREATE POLICY "Everyone reads active news" ON news_announcements FOR SELECT USING (is_active = TRUE);
+CREATE POLICY "Service role full access to news" ON news_announcements FOR ALL USING (auth.role() = 'service_role');

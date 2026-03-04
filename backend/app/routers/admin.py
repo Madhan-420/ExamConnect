@@ -212,6 +212,68 @@ async def view_feedbacks(current_user: dict = Depends(require_role("admin"))):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/attendance", response_model=list)
+async def view_all_attendance(
+    date: Optional[str] = Query(None, description="Filter by date (YYYY-MM-DD)"),
+    current_user: dict = Depends(require_role("admin"))
+):
+    """View all student attendance records with optional date filtering."""
+    try:
+        sb = get_supabase_admin()
+        
+        query = sb.table("attendance").select("id, student_id, date, status, remarks, created_at, profiles(full_name, reg_number)").order("date", desc=True)
+        
+        if date:
+            query = query.eq("date", date)
+            
+        attendance_records = query.execute()
+        records = attendance_records.data or []
+        
+        # Flatten the profiles data
+        for record in records:
+            profile = record.pop("profiles", {}) or {}
+            record["student_name"] = profile.get("full_name", "Unknown")
+            record["reg_number"] = profile.get("reg_number", "Unknown")
+
+        return records
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/attendance/download")
+async def download_all_attendance(
+    date: Optional[str] = Query(None, description="Filter by date (YYYY-MM-DD)"),
+    current_user: dict = Depends(require_role("admin"))
+):
+    """Download attendance records as JSON."""
+    try:
+        sb = get_supabase_admin()
+        
+        query = sb.table("attendance").select("id, student_id, date, status, remarks, created_at, profiles(full_name, reg_number)").order("date", desc=True)
+        if date:
+            query = query.eq("date", date)
+            
+        attendance_records = query.execute()
+        records = attendance_records.data or []
+        
+        for record in records:
+            profile = record.pop("profiles", {}) or {}
+            record["student_name"] = profile.get("full_name", "Unknown")
+            record["reg_number"] = profile.get("reg_number", "Unknown")
+            
+        content = _json.dumps(records, indent=2, default=str)
+        from fastapi.responses import Response
+        filename = f"attendance_records_{date}.json" if date else "all_attendance_records.json"
+        
+        return Response(
+            content=content,
+            media_type="application/json",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ─── Admin Analytics ───
 
 import json as _json

@@ -4,6 +4,7 @@ import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Sidebar from './Sidebar';
+import NewsFlashBanner from './NewsFlashBanner';
 import { motion } from 'framer-motion';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -71,6 +72,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div style={{ display: 'flex', minHeight: '100vh' }}>
             <Sidebar />
             <main style={{ flex: 1, padding: '32px', overflow: 'auto' }}>
+                <NewsFlashBanner />
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}

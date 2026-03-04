@@ -138,61 +138,63 @@ export default function InternalMarksPage() {
                         <p>No students assigned to you yet.</p>
                     </div>
                 ) : (
-                    <table className="data-table">
-                        <thead>
-                            <tr>
-                                <th>Student Name</th>
-                                <th>Reg Number</th>
-                                <th style={{ width: 120 }}>Marks Obtained</th>
-                                <th style={{ width: 120 }}>Total Marks</th>
-                                <th>Percentage</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {students.map(student => {
-                                const currentData = marksMap[student.id] || { marks: '', total_marks: 100 };
-                                const p = (currentData.marks !== '' && currentData.total_marks)
-                                    ? ((Number(currentData.marks) / Number(currentData.total_marks)) * 100).toFixed(1)
-                                    : '--';
-                                return (
-                                    <tr key={student.id}>
-                                        <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{student.full_name}</td>
-                                        <td>{student.reg_number || '—'}</td>
-                                        <td>
-                                            <input
-                                                type="number"
-                                                className="input-field"
-                                                placeholder="0"
-                                                value={currentData.marks}
-                                                onChange={e => updateMark(student.id, 'marks', e.target.value)}
-                                                style={{ padding: '6px 12px', fontSize: '0.85rem', width: '100%' }}
-                                                min={0}
-                                                max={currentData.total_marks || 100}
-                                            />
-                                        </td>
-                                        <td>
-                                            <input
-                                                type="number"
-                                                className="input-field"
-                                                value={currentData.total_marks}
-                                                onChange={e => updateMark(student.id, 'total_marks', e.target.value)}
-                                                style={{ padding: '6px 12px', fontSize: '0.85rem', width: '100%' }}
-                                                min={1}
-                                            />
-                                        </td>
-                                        <td>
-                                            <span style={{
-                                                fontWeight: 600,
-                                                color: p !== '--' && Number(p) >= 50 ? '#10b981' : (p === '--' ? 'var(--text-muted)' : '#ef4444')
-                                            }}>
-                                                {p !== '--' ? `${p}%` : '—'}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
+                    <div className="table-responsive">
+                        <table className="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Student Name</th>
+                                    <th>Reg Number</th>
+                                    <th style={{ width: 120 }}>Marks Obtained</th>
+                                    <th style={{ width: 120 }}>Total Marks</th>
+                                    <th>Percentage</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {students.map(student => {
+                                    const currentData = marksMap[student.id] || { marks: '', total_marks: 100 };
+                                    const p = (currentData.marks !== '' && currentData.total_marks)
+                                        ? ((Number(currentData.marks) / Number(currentData.total_marks)) * 100).toFixed(1)
+                                        : '--';
+                                    return (
+                                        <tr key={student.id}>
+                                            <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{student.full_name}</td>
+                                            <td>{student.reg_number || '—'}</td>
+                                            <td>
+                                                <input
+                                                    type="number"
+                                                    className="input-field"
+                                                    placeholder="0"
+                                                    value={currentData.marks}
+                                                    onChange={e => updateMark(student.id, 'marks', e.target.value)}
+                                                    style={{ padding: '6px 12px', fontSize: '0.85rem', width: '100%' }}
+                                                    min={0}
+                                                    max={currentData.total_marks || 100}
+                                                />
+                                            </td>
+                                            <td>
+                                                <input
+                                                    type="number"
+                                                    className="input-field"
+                                                    value={currentData.total_marks}
+                                                    onChange={e => updateMark(student.id, 'total_marks', e.target.value)}
+                                                    style={{ padding: '6px 12px', fontSize: '0.85rem', width: '100%' }}
+                                                    min={1}
+                                                />
+                                            </td>
+                                            <td>
+                                                <span style={{
+                                                    fontWeight: 600,
+                                                    color: p !== '--' && Number(p) >= 50 ? '#10b981' : (p === '--' ? 'var(--text-muted)' : '#ef4444')
+                                                }}>
+                                                    {p !== '--' ? `${p}%` : '—'}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
                 )}
             </div>
         </DashboardLayout>

@@ -49,7 +49,7 @@ async def options_handler(request: Request, path: str):
     )
 
 
-from app.routers import admin, teachers, students, auth, chat, live_classes
+from app.routers import admin, teachers, students, auth, chat, live_classes, news, au_news
 from app.services.supabase import get_supabase_admin
 import asyncio
 from datetime import datetime, timedelta, timezone
@@ -60,6 +60,8 @@ app.include_router(teachers.router, prefix="/api/teacher", tags=["Teachers"])
 app.include_router(students.router, prefix="/api/student", tags=["Students"])
 app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])
 app.include_router(live_classes.router, prefix="/api/live-classes", tags=["Live Classes"])
+app.include_router(news.router, prefix="/api/news", tags=["News"])
+app.include_router(au_news.router, prefix="/api/au-news", tags=["AU News"])
 
 
 

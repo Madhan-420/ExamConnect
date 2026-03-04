@@ -432,20 +432,80 @@ textarea.input-field {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 
+/* ──── Table Responsive ──── */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+}
+
+.table-responsive .data-table {
+  min-width: 600px;
+}
+
+/* ──── News Flash Banner ──── */
+@keyframes scroll-ticker {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes urgent-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.news-ticker {
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+  width: 100%;
+}
+
+.news-ticker-content {
+  display: inline-flex;
+  animation: scroll-ticker 30s linear infinite;
+  gap: 60px;
+  padding-right: 60px;
+}
+
+.news-ticker:hover .news-ticker-content {
+  animation-play-state: paused;
+}
+
+.news-urgent {
+  animation: urgent-pulse 2s ease-in-out infinite;
+}
+
 /* ──── Responsive ──── */
 @media (max-width: 768px) {
   .glass-card {
-    padding: 16px;
+    padding: 14px;
   }
 
   .stat-card {
-    padding: 16px;
+    padding: 14px;
   }
 
   .btn-primary,
   .btn-secondary {
-    padding: 10px 20px;
-    font-size: 0.9rem;
+    padding: 10px 16px;
+    font-size: 0.85rem;
+  }
+
+  .modal-content {
+    padding: 20px;
+    width: 95%;
+    max-height: 90vh;
+  }
+
+  .data-table th {
+    padding: 10px 12px;
+    font-size: 0.72rem;
+  }
+
+  .data-table td {
+    padding: 10px 12px;
+    font-size: 0.82rem;
   }
 
   /* Show hamburger button on mobile */
@@ -458,9 +518,36 @@ textarea.input-field {
     display: none !important;
   }
 
-  /* Add top padding for hamburger button space */
+  /* Reduce main padding on mobile */
   main {
+    padding: 16px !important;
     padding-top: 72px !important;
+  }
+
+  h1 {
+    font-size: 1.3rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .glass-card {
+    padding: 12px;
+    border-radius: var(--radius-md);
+  }
+
+  .stat-card {
+    padding: 12px;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    padding: 8px 14px;
+    font-size: 0.8rem;
+  }
+
+  main {
+    padding: 10px !important;
+    padding-top: 68px !important;
   }
 }
 
