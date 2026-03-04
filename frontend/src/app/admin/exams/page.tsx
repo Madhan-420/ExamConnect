@@ -5,6 +5,8 @@ import DashboardLayout from '../../../components/DashboardLayout';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileText, Users, Clock, Award, Download, ChevronDown, ChevronUp, Eye, Search } from 'lucide-react';
 import api from '../../../lib/api';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export default function AdminExamsPage() {
     const [exams, setExams] = useState<any[]>([]);
@@ -52,6 +54,67 @@ export default function AdminExamsPage() {
             const a = document.createElement('a'); a.href = url; a.download = 'all_submissions.json'; a.click();
             URL.revokeObjectURL(url);
         } catch { alert('Download failed'); }
+    };
+
+    const downloadQuestionPaperPDF = () => {
+        if (!examDetail || !examDetail.questions || examDetail.questions.length === 0) {
+            alert('No questions found for this exam.');
+            return;
+        }
+        const doc = new jsPDF();
+        doc.setFontSize(18);
+        doc.text(`Question Paper - ${examDetail.title}`, 14, 20);
+
+        doc.setFontSize(12);
+        let y = 35;
+        examDetail.questions.forEach((q: any, idx: number) => {
+            if (y > 270) { doc.addPage(); y = 20; }
+            doc.setFont('helvetica', 'bold');
+            doc.text(`Q${idx + 1} (${q.marks} marks):`, 14, y);
+            doc.setFont('helvetica', 'normal');
+
+            const splitText = doc.splitTextToSize(q.question_text, 170);
+            doc.text(splitText, 14, y + 6);
+            y += splitText.length * 6 + 8;
+
+            if (q.question_type === 'mcq' && q.options) {
+                const opts = typeof q.options === 'string' ? JSON.parse(q.options) : q.options;
+                opts.forEach((opt: string, optIdx: number) => {
+                    if (y > 280) { doc.addPage(); y = 20; }
+                    doc.text(`${String.fromCharCode(65 + optIdx)}) ${opt}`, 20, y);
+                    y += 6;
+                });
+                y += 4;
+            }
+        });
+        doc.save(`Exam_${examDetail.id}_QuestionPaper.pdf`);
+    };
+
+    const downloadSubmissionsPDF = () => {
+        if (!examDetail || !examDetail.submissions || examDetail.submissions.length === 0) {
+            alert('No submissions to download for this exam.');
+            return;
+        }
+        const doc = new jsPDF();
+        doc.setFontSize(18);
+        doc.text(`Submissions - ${examDetail.title}`, 14, 20);
+
+        const tableData = examDetail.submissions.map((sub: any) => [
+            sub.student?.full_name || 'Unknown',
+            sub.student?.reg_number || 'N/A',
+            sub.status,
+            sub.result?.marks_obtained !== undefined ? `${sub.result.marks_obtained}/${sub.result.total_marks}` : 'Not Graded',
+            sub.submitted_at ? new Date(sub.submitted_at).toLocaleDateString() : 'N/A'
+        ]);
+
+        autoTable(doc, {
+            head: [['Student Name', 'Reg Number', 'Status', 'Marks', 'Date']],
+            body: tableData,
+            startY: 30,
+            theme: 'grid',
+            headStyles: { fillColor: [59, 130, 246] }
+        });
+        doc.save(`Exam_${examDetail.id}_Submissions.pdf`);
     };
 
     const filtered = exams.filter(e =>
@@ -140,10 +203,32 @@ export default function AdminExamsPage() {
                             transition={{ type: 'spring', damping: 28, stiffness: 280 }}
                             style={{ width: '100%', maxWidth: 700, background: 'var(--bg-secondary)', overflowY: 'auto', padding: 28 }}
                             onClick={e => e.stopPropagation()}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 22 }}>
                                 <div>
                                     <h2 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: 4 }}>{selectedExam.title}</h2>
                                     <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{selectedExam.subject} • {selectedExam.teacher_name}</p>
+
+                                    {/* Action Buttons for PDF Downloads */}
+                                    {examDetail && (
+                                        <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+                                            <button onClick={downloadQuestionPaperPDF}
+                                                style={{
+                                                    display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6,
+                                                    background: 'rgba(56,189,248,0.12)', border: '1px solid rgba(56,189,248,0.3)',
+                                                    color: '#38bdf8', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600,
+                                                }}>
+                                                <FileText size={14} /> Question Paper PDF
+                                            </button>
+                                            <button onClick={downloadSubmissionsPDF}
+                                                style={{
+                                                    display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6,
+                                                    background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.3)',
+                                                    color: '#60a5fa', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600,
+                                                }}>
+                                                <FileText size={14} /> Submissions PDF
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                                 <button onClick={() => setSelectedExam(null)}
                                     style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.4rem' }}>✕</button>
@@ -236,6 +321,6 @@ export default function AdminExamsPage() {
                     </motion.div>
                 )}
             </AnimatePresence>
-        </DashboardLayout>
+        </DashboardLayout >
     );
 }

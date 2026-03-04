@@ -5,6 +5,7 @@ import DashboardLayout from '../../../components/DashboardLayout';
 import { motion } from 'framer-motion';
 import { FileDown, Calendar as CalendarIcon, Loader2, FileText, CheckCircle, XCircle } from 'lucide-react';
 import api from '../../../lib/api';
+import * as XLSX from 'xlsx';
 
 export default function AdminAttendancePage() {
     const [attendance, setAttendance] = useState<any[]>([]);
@@ -28,29 +29,29 @@ export default function AdminAttendancePage() {
         fetchAttendance();
     }, [dateFilter]);
 
-    const handleDownload = async () => {
-        try {
-            const url = dateFilter ? `/api/admin/attendance/download?date=${dateFilter}` : '/api/admin/attendance/download';
-            const res = await api.get(url, { responseType: 'blob' });
-
-            // Create blob link to download
-            const blobUrl = window.URL.createObjectURL(new Blob([res.data]));
-            const link = document.createElement('a');
-            link.href = blobUrl;
-            link.setAttribute('download', dateFilter ? `attendance_records_${dateFilter}.json` : 'all_attendance_records.json');
-
-            // Append to html link element page
-            document.body.appendChild(link);
-
-            // Start download
-            link.click();
-
-            // Clean up and remove the link
-            link.parentNode?.removeChild(link);
-            window.URL.revokeObjectURL(blobUrl);
-        } catch (err) {
-            alert('Failed to download attendance');
+    const handleDownload = () => {
+        if (attendance.length === 0) {
+            alert("No attendance records to download.");
+            return;
         }
+
+        // Prepare data for Excel
+        const exportData = attendance.map(record => ({
+            'Date': record.date,
+            'Student Name': record.student_name,
+            'Registration Number': record.reg_number,
+            'Status': record.status,
+            'Remarks': record.remarks || ''
+        }));
+
+        // Create virtual workbook and worksheet
+        const worksheet = XLSX.utils.json_to_sheet(exportData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance");
+
+        // Generate and download Excel file
+        const fileName = dateFilter ? `Attendance_${dateFilter}.xlsx` : 'All_Attendance_Records.xlsx';
+        XLSX.writeFile(workbook, fileName);
     };
 
     return (
@@ -77,7 +78,7 @@ export default function AdminAttendancePage() {
                         onClick={handleDownload}
                         style={{ display: 'flex', alignItems: 'center', gap: 8 }}
                     >
-                        <FileDown size={18} /> Download JSON
+                        <FileDown size={18} /> Download Excel
                     </motion.button>
                 </div>
             </div>

@@ -3,8 +3,9 @@
 import React, { useEffect, useState } from 'react';
 import DashboardLayout from '../../../components/DashboardLayout';
 import { motion } from 'framer-motion';
-import { Calendar, Save, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Calendar, Save, CheckCircle, XCircle, Clock, FileDown } from 'lucide-react';
 import api from '../../../lib/api';
+import * as XLSX from 'xlsx';
 
 export default function AttendancePage() {
     const [students, setStudents] = useState<any[]>([]);
@@ -73,6 +74,27 @@ export default function AttendancePage() {
         setSaving(false);
     };
 
+    const handleDownload = () => {
+        if (students.length === 0) {
+            alert("No students to download.");
+            return;
+        }
+        const exportData = students.map(student => {
+            const currentData = attendanceMap[student.id] || { status: 'present', remarks: '' };
+            return {
+                'Student Name': student.full_name,
+                'Registration Number': student.reg_number || '',
+                'Date': selectedDate,
+                'Status': currentData.status,
+                'Remarks': currentData.remarks
+            };
+        });
+        const worksheet = XLSX.utils.json_to_sheet(exportData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, `Attendance_${selectedDate}`);
+        XLSX.writeFile(workbook, `Class_Attendance_${selectedDate}.xlsx`);
+    };
+
     const updateStudentAttendance = (studentId: string, field: 'status' | 'remarks', value: string) => {
         setAttendanceMap(prev => ({
             ...prev,
@@ -101,6 +123,16 @@ export default function AttendancePage() {
                             style={{ paddingLeft: 40 }}
                         />
                     </div>
+                    <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="btn-secondary"
+                        onClick={handleDownload}
+                        disabled={students.length === 0}
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: 'rgba(255,255,255,0.05)', borderRadius: 8, border: '1px solid var(--border-glass)' }}
+                    >
+                        <FileDown size={18} /> Download Excel
+                    </motion.button>
                     <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}

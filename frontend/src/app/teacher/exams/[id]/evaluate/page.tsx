@@ -6,6 +6,8 @@ import DashboardLayout from '../../../../../components/DashboardLayout';
 import { motion } from 'framer-motion';
 import { User, Award, Check, Download, FileText, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
 import api from '../../../../../lib/api';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export default function EvaluatePage() {
     const params = useParams();
@@ -80,17 +82,67 @@ export default function EvaluatePage() {
         setSubmitting(false);
     };
 
-    const handleDownloadSubmissions = async () => {
-        try {
-            const token = localStorage.getItem('exam_connect_token');
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/teacher/exams/${examId}/submissions/download`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            const blob = await res.blob();
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a'); a.href = url; a.download = `exam_${examId}_submissions.json`; a.click();
-            URL.revokeObjectURL(url);
-        } catch { alert('Download failed.'); }
+    const handleDownloadSubmissions = () => {
+        if (submissions.length === 0) {
+            alert('No submissions to download.');
+            return;
+        }
+        const doc = new jsPDF();
+        doc.setFontSize(18);
+        doc.text(`Submissions for Exam ID: ${examId}`, 14, 20);
+
+        const tableData = submissions.map(sub => [
+            sub.student?.full_name || 'Unknown',
+            sub.student?.reg_number || 'N/A',
+            sub.status,
+            sub.result?.marks_obtained !== undefined ? `${sub.result.marks_obtained}` : 'Not Graded',
+            new Date(sub.submitted_at).toLocaleDateString()
+        ]);
+
+        autoTable(doc, {
+            head: [['Student Name', 'Reg Number', 'Status', 'Marks', 'Date']],
+            body: tableData,
+            startY: 30,
+            theme: 'grid',
+            headStyles: { fillColor: [139, 92, 246] }
+        });
+
+        doc.save(`Exam_${examId}_Submissions.pdf`);
+    };
+
+    const handleDownloadQuestionPaper = () => {
+        if (questions.length === 0) {
+            alert('No questions found.');
+            return;
+        }
+        const doc = new jsPDF();
+        doc.setFontSize(18);
+        doc.text(`Question Paper - Exam ID: ${examId}`, 14, 20);
+
+        doc.setFontSize(12);
+        let y = 35;
+        questions.forEach((q, idx) => {
+            if (y > 270) { doc.addPage(); y = 20; }
+            doc.setFont('helvetica', 'bold');
+            doc.text(`Q${idx + 1} (${q.marks} marks):`, 14, y);
+            doc.setFont('helvetica', 'normal');
+
+            const splitText = doc.splitTextToSize(q.question_text, 170);
+            doc.text(splitText, 14, y + 6);
+            y += splitText.length * 6 + 8;
+
+            if (q.question_type === 'mcq' && q.options) {
+                const opts = typeof q.options === 'string' ? JSON.parse(q.options) : q.options;
+                opts.forEach((opt: string, optIdx: number) => {
+                    if (y > 280) { doc.addPage(); y = 20; }
+                    doc.text(`${String.fromCharCode(65 + optIdx)}) ${opt}`, 20, y);
+                    y += 6;
+                });
+                y += 4;
+            }
+        });
+
+        doc.save(`Exam_${examId}_QuestionPaper.pdf`);
     };
 
     // Map question id → question data
@@ -110,7 +162,15 @@ export default function EvaluatePage() {
                             background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)',
                             color: '#a78bfa', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600,
                         }}>
-                        <Download size={16} /> Download All
+                        <FileText size={16} /> Submissions PDF
+                    </button>
+                    <button onClick={handleDownloadQuestionPaper}
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 10,
+                            background: 'rgba(56,189,248,0.12)', border: '1px solid rgba(56,189,248,0.3)',
+                            color: '#38bdf8', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600,
+                        }}>
+                        <FileText size={16} /> Question Paper PDF
                     </button>
                     <button onClick={handlePublishResults} disabled={publishing || publishDone}
                         style={{

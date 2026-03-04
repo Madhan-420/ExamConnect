@@ -3,8 +3,9 @@
 import React, { useEffect, useState } from 'react';
 import DashboardLayout from '../../../components/DashboardLayout';
 import { motion } from 'framer-motion';
-import { Award, Save, Book } from 'lucide-react';
+import { Award, Save, Book, FileDown } from 'lucide-react';
 import api from '../../../lib/api';
+import * as XLSX from 'xlsx';
 
 export default function InternalMarksPage() {
     const [students, setStudents] = useState<any[]>([]);
@@ -83,6 +84,32 @@ export default function InternalMarksPage() {
         setSaving(false);
     };
 
+    const handleDownload = () => {
+        if (students.length === 0) {
+            alert("No students to download.");
+            return;
+        }
+        const exportData = students.map(student => {
+            const currentData = marksMap[student.id] || { marks: '', total_marks: 100 };
+            const p = (currentData.marks !== '' && currentData.total_marks)
+                ? ((Number(currentData.marks) / Number(currentData.total_marks)) * 100).toFixed(1)
+                : '--';
+
+            return {
+                'Student Name': student.full_name,
+                'Registration Number': student.reg_number || '',
+                'Subject': subject,
+                'Marks Obtained': currentData.marks !== '' ? currentData.marks : 'N/A',
+                'Total Marks': currentData.total_marks,
+                'Percentage': p !== '--' ? `${p}%` : 'N/A'
+            };
+        });
+        const worksheet = XLSX.utils.json_to_sheet(exportData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, `${subject}_Marks`);
+        XLSX.writeFile(workbook, `${subject}_Internal_Marks.xlsx`);
+    };
+
     const updateMark = (studentId: string, field: 'marks' | 'total_marks', value: string) => {
         setMarksMap(prev => ({
             ...prev,
@@ -112,6 +139,16 @@ export default function InternalMarksPage() {
                             style={{ paddingLeft: 40, width: 200 }}
                         />
                     </div>
+                    <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="btn-secondary"
+                        onClick={handleDownload}
+                        disabled={students.length === 0 || !subject}
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: 'rgba(255,255,255,0.05)', borderRadius: 8, border: '1px solid var(--border-glass)' }}
+                    >
+                        <FileDown size={18} /> Download Excel
+                    </motion.button>
                     <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
