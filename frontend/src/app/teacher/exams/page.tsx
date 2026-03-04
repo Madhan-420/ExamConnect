@@ -173,7 +173,7 @@ export default function TeacherExamsPage() {
             </div>
 
             {loading ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
                     {[1, 2, 3].map(i => <div key={i} className="skeleton" style={{ height: 200, borderRadius: 'var(--radius-lg)' }} />)}
                 </div>
             ) : exams.length === 0 ? (
@@ -182,7 +182,7 @@ export default function TeacherExamsPage() {
                     <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>No exams yet. Create your first exam!</p>
                 </div>
             ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
                     {exams.map((exam, i) => (
                         <motion.div key={exam.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.05 }} className="glass-card" style={{ padding: 24 }}>

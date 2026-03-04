@@ -127,61 +127,63 @@ export default function AttendancePage() {
                         <p>No students assigned to you yet.</p>
                     </div>
                 ) : (
-                    <table className="data-table">
-                        <thead>
-                            <tr>
-                                <th>Student Name</th>
-                                <th>Reg Number</th>
-                                <th>Status</th>
-                                <th>Remarks (Optional)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {students.map(student => {
-                                const currentData = attendanceMap[student.id] || { status: 'present', remarks: '' };
-                                return (
-                                    <tr key={student.id}>
-                                        <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{student.full_name}</td>
-                                        <td>{student.reg_number || '—'}</td>
-                                        <td>
-                                            <div style={{ display: 'flex', gap: 8 }}>
-                                                {[
-                                                    { id: 'present', label: 'Present', icon: CheckCircle, color: '#10b981' },
-                                                    { id: 'absent', label: 'Absent', icon: XCircle, color: '#ef4444' },
-                                                    { id: 'late', label: 'Late', icon: Clock, color: '#f59e0b' }
-                                                ].map(opt => (
-                                                    <button
-                                                        key={opt.id}
-                                                        onClick={() => updateStudentAttendance(student.id, 'status', opt.id)}
-                                                        style={{
-                                                            display: 'flex', alignItems: 'center', gap: 4,
-                                                            padding: '6px 12px', borderRadius: 20, fontSize: '0.8rem', fontWeight: 600,
-                                                            cursor: 'pointer', border: '1px solid transparent',
-                                                            background: currentData.status === opt.id ? `${opt.color}22` : 'rgba(255,255,255,0.05)',
-                                                            color: currentData.status === opt.id ? opt.color : 'var(--text-secondary)',
-                                                            borderColor: currentData.status === opt.id ? `${opt.color}55` : 'transparent',
-                                                            transition: 'all 0.2s'
-                                                        }}
-                                                    >
-                                                        <opt.icon size={14} /> {opt.label}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <input
-                                                className="input-field"
-                                                placeholder="Add remarks..."
-                                                value={currentData.remarks}
-                                                onChange={e => updateStudentAttendance(student.id, 'remarks', e.target.value)}
-                                                style={{ padding: '6px 12px', fontSize: '0.85rem' }}
-                                            />
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
+                    <div className="table-responsive">
+                        <table className="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Student Name</th>
+                                    <th>Reg Number</th>
+                                    <th>Status</th>
+                                    <th>Remarks (Optional)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {students.map(student => {
+                                    const currentData = attendanceMap[student.id] || { status: 'present', remarks: '' };
+                                    return (
+                                        <tr key={student.id}>
+                                            <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{student.full_name}</td>
+                                            <td>{student.reg_number || '—'}</td>
+                                            <td>
+                                                <div style={{ display: 'flex', gap: 8 }}>
+                                                    {[
+                                                        { id: 'present', label: 'Present', icon: CheckCircle, color: '#10b981' },
+                                                        { id: 'absent', label: 'Absent', icon: XCircle, color: '#ef4444' },
+                                                        { id: 'late', label: 'Late', icon: Clock, color: '#f59e0b' }
+                                                    ].map(opt => (
+                                                        <button
+                                                            key={opt.id}
+                                                            onClick={() => updateStudentAttendance(student.id, 'status', opt.id)}
+                                                            style={{
+                                                                display: 'flex', alignItems: 'center', gap: 4,
+                                                                padding: '6px 12px', borderRadius: 20, fontSize: '0.8rem', fontWeight: 600,
+                                                                cursor: 'pointer', border: '1px solid transparent',
+                                                                background: currentData.status === opt.id ? `${opt.color}22` : 'rgba(255,255,255,0.05)',
+                                                                color: currentData.status === opt.id ? opt.color : 'var(--text-secondary)',
+                                                                borderColor: currentData.status === opt.id ? `${opt.color}55` : 'transparent',
+                                                                transition: 'all 0.2s'
+                                                            }}
+                                                        >
+                                                            <opt.icon size={14} /> {opt.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <input
+                                                    className="input-field"
+                                                    placeholder="Add remarks..."
+                                                    value={currentData.remarks}
+                                                    onChange={e => updateStudentAttendance(student.id, 'remarks', e.target.value)}
+                                                    style={{ padding: '6px 12px', fontSize: '0.85rem' }}
+                                                />
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
                 )}
             </div>
         </DashboardLayout>

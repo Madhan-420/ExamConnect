@@ -78,7 +78,7 @@ export default function TeacherLiveClassesPage() {
                 <h2 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Plus size={18} color="#a78bfa" /> Start a New Class
                 </h2>
-                <div style={{ display: 'flex', gap: 12 }}>
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                     <input
                         value={titleInput}
                         onChange={e => setTitleInput(e.target.value)}
@@ -126,7 +126,7 @@ export default function TeacherLiveClassesPage() {
             </h2>
 
             {loading ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 20 }}>
                     {[1, 2].map(i => <div key={i} className="skeleton" style={{ height: 180, borderRadius: 16 }} />)}
                 </div>
             ) : classes.length === 0 ? (
@@ -141,7 +141,7 @@ export default function TeacherLiveClassesPage() {
                     <p style={{ color: 'var(--text-muted)' }}>No active classes. Start one above!</p>
                 </motion.div>
             ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 20 }}>
                     <AnimatePresence>
                         {classes.map((cls, i) => (
                             <motion.div

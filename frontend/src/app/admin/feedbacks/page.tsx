@@ -45,7 +45,7 @@ export default function AdminFeedbacksPage() {
                         <p>No feedback or complaints found.</p>
                     </div>
                 ) : (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 20 }}>
                         {feedbacks.map((fb) => (
                             <motion.div
                                 key={fb.id}

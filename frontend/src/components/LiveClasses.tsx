@@ -80,7 +80,7 @@ export default function LiveClasses() {
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setIsOpen(!isOpen)}
                 style={{
-                    position: 'fixed', bottom: 30, left: 120, zIndex: 40,
+                    position: 'fixed', bottom: 30, right: 20, zIndex: 40,
                     padding: '12px 20px', borderRadius: 30,
                     background: profile.role === 'teacher' ? 'var(--gradient-main)' : 'rgba(255,255,255,0.05)',
                     border: profile.role === 'teacher' ? 'none' : '1px solid var(--border-glass)',
@@ -110,8 +110,8 @@ export default function LiveClasses() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 50, scale: 0.95 }}
                         style={{
-                            position: 'fixed', bottom: 90, left: 120, zIndex: 40,
-                            width: 380, maxHeight: 500, borderRadius: 20,
+                            position: 'fixed', bottom: 90, right: 16, zIndex: 40,
+                            width: 'min(380px, calc(100vw - 32px))', maxHeight: 500, borderRadius: 20,
                             background: 'rgba(20, 20, 30, 0.9)',
                             backdropFilter: 'blur(20px)',
                             border: '1px solid var(--border-glass)',

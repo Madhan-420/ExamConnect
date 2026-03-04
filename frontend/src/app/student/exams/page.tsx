@@ -26,7 +26,7 @@ export default function StudentExamsPage() {
             </div>
 
             {loading ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
                     {[1, 2, 3].map(i => <div key={i} className="skeleton" style={{ height: 200, borderRadius: 'var(--radius-lg)' }} />)}
                 </div>
             ) : exams.length === 0 ? (
@@ -35,7 +35,7 @@ export default function StudentExamsPage() {
                     <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>No exams available right now</p>
                 </div>
             ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
                     {exams.map((exam, i) => {
                         const examDate = new Date(exam.scheduled_at);
                         const now = new Date();

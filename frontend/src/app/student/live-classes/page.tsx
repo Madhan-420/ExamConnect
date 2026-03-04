@@ -41,7 +41,7 @@ export default function StudentLiveClassesPage() {
             </div>
 
             {loading ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 20 }}>
                     {[1, 2].map(i => <div key={i} className="skeleton" style={{ height: 180, borderRadius: 16 }} />)}
                 </div>
             ) : classes.length === 0 ? (
@@ -59,7 +59,7 @@ export default function StudentLiveClassesPage() {
                     </p>
                 </motion.div>
             ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 20 }}>
                     <AnimatePresence>
                         {classes.map((cls, i) => (
                             <motion.div

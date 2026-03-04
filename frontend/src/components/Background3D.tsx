@@ -316,6 +316,17 @@ function AvatarWrapper({ theme }: { theme: 'male' | 'female' | 'default' }) {
 
 export default function Background3D() {
     const { theme } = useTheme();
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const check = () => setIsMobile(window.innerWidth < 768);
+        check();
+        window.addEventListener('resize', check);
+        return () => window.removeEventListener('resize', check);
+    }, []);
+
+    // Don't render 3D on mobile — too heavy and overlaps content
+    if (isMobile) return null;
 
     return (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: -10, pointerEvents: 'none' }}>

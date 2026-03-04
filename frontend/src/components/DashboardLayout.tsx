@@ -69,17 +69,36 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!profile) return null;
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh' }}>
+        <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-primary)' }}>
             <Sidebar />
-            <main style={{ flex: 1, padding: '32px', overflow: 'auto' }}>
-                <NewsFlashBanner />
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4 }}
-                >
-                    {children}
-                </motion.div>
+            <main style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                height: '100vh',
+                overflow: 'hidden'
+            }}>
+                <div style={{
+                    flex: 1,
+                    overflowY: 'auto',
+                    padding: '32px 24px',
+                    /* Constrain width on ultra-wide monitors for better readability */
+                    width: '100%',
+                    maxWidth: '1600px',
+                    margin: '0 auto',
+                    position: 'relative'
+                }}>
+                    <div className="md:px-4">
+                        <NewsFlashBanner />
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                        >
+                            {children}
+                        </motion.div>
+                    </div>
+                </div>
             </main>
         </div>
     );

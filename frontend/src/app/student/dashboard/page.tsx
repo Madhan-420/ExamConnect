@@ -5,10 +5,19 @@ import DashboardLayout from '../../../components/DashboardLayout';
 import { motion } from 'framer-motion';
 import { BookOpen, Clock, CheckCircle, TrendingUp, Trophy } from 'lucide-react';
 import api from '../../../lib/api';
+import { useAuth } from '../../../context/AuthContext';
 
 export default function StudentDashboard() {
+    const { profile } = useAuth();
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+
+    const getGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return 'Good Morning';
+        if (hour < 17) return 'Good Afternoon';
+        return 'Good Evening';
+    };
 
     useEffect(() => {
         api.get('/api/student/dashboard')
@@ -26,10 +35,36 @@ export default function StudentDashboard() {
 
     return (
         <DashboardLayout>
-            <div style={{ marginBottom: 32 }}>
-                <h1 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: 6 }}>Student Dashboard</h1>
-                <p style={{ color: 'var(--text-secondary)' }}>Your exams and performance</p>
-            </div>
+            {/* Premium Welcome Header */}
+            <motion.div className="welcome-header" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                        <div style={{
+                            width: 52, height: 52, borderRadius: 14,
+                            background: 'var(--role-gradient)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            boxShadow: '0 4px 20px rgba(var(--role-accent-rgb), 0.3)',
+                        }}>
+                            <BookOpen size={26} color="white" />
+                        </div>
+                        <div>
+                            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 4 }}>{getGreeting()}</p>
+                            <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>
+                                <span className="shimmer-text">{profile?.full_name || 'Student'}</span>
+                            </h1>
+                            <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: 4 }}>Student — Academic Dashboard</p>
+                        </div>
+                    </div>
+                    <div style={{
+                        padding: '8px 16px', borderRadius: 12,
+                        background: 'rgba(var(--role-accent-rgb), 0.08)',
+                        border: '1px solid rgba(var(--role-accent-rgb), 0.15)',
+                        fontSize: '0.82rem', color: 'var(--text-secondary)',
+                    }}>
+                        {new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                    </div>
+                </div>
+            </motion.div>
 
             {loading ? (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20 }}>
