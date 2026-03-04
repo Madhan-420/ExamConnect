@@ -3,6 +3,8 @@
 import React from 'react';
 import dynamic from 'next/dynamic';
 
+import SpaceParticles from './SpaceParticles';
+
 // Fix for Next.js SSR hydration crashing with 3D Canvas / FBX loaders
 const Background3D = dynamic(() => import('./Background3D'), {
     ssr: false,
@@ -12,6 +14,7 @@ const Background3D = dynamic(() => import('./Background3D'), {
 export default function ClientLayoutWrapper({ children }: { children: React.ReactNode }) {
     return (
         <>
+            <SpaceParticles />
             <Background3D />
             {children}
         </>

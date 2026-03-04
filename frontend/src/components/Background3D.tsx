@@ -333,6 +333,39 @@ function AvatarWrapper({ theme }: { theme: 'male' | 'female' | 'default' }) {
     );
 }
 
+function LunarMoon({ color }: { color: string }) {
+    const moonRef = useRef<THREE.Mesh>(null);
+    useFrame((state) => {
+        if (!moonRef.current) return;
+        moonRef.current.rotation.y = state.clock.elapsedTime * 0.05;
+        moonRef.current.rotation.z = state.clock.elapsedTime * 0.02;
+    });
+
+    return (
+        <group>
+            <Float speed={0.5} rotationIntensity={0.1} floatIntensity={0.5}>
+                {/* The Moon */}
+                <mesh ref={moonRef} position={[12, 8, -25]}>
+                    <sphereGeometry args={[8, 64, 64]} />
+                    <meshStandardMaterial
+                        color="#2a2a35"
+                        emissive={color}
+                        emissiveIntensity={0.15}
+                        roughness={0.8}
+                        metalness={0.2}
+                    />
+                </mesh>
+
+                {/* Moon Glow Aura */}
+                <mesh position={[12, 8, -26]}>
+                    <sphereGeometry args={[9.5, 32, 32]} />
+                    <meshBasicMaterial color={color} transparent opacity={0.15} blending={THREE.AdditiveBlending} />
+                </mesh>
+            </Float>
+        </group>
+    );
+}
+
 export default function Background3D() {
     // Theme determines the gender/model chosen
     const { theme } = useTheme();
@@ -381,6 +414,7 @@ export default function Background3D() {
                     {role === 'guest' && <GuestEnvironment />}
 
                     <AvatarWrapper theme={theme} />
+                    <LunarMoon color={spotLightColor} />
                 </Suspense>
             </Canvas>
         </div>

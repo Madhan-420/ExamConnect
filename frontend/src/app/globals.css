@@ -579,6 +579,60 @@ textarea.input-field {
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 40px rgba(var(--role-accent-rgb), 0.15);
 }
 
+/* ──── News Ticker ──── */
+.news-ticker {
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+  display: flex;
+}
+
+.news-ticker-content {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: ticker 25s linear infinite;
+  gap: 3rem;
+}
+
+.news-ticker-content:hover {
+  animation-play-state: paused;
+}
+
+@keyframes ticker {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* Flashing/Blinking animation for urgent news */
+@keyframes flash-urgent {
+  0% {
+    opacity: 1;
+    border-color: rgba(239, 68, 68, 0.3);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
+  }
+
+  50% {
+    opacity: 0.85;
+    border-color: rgba(239, 68, 68, 0.6);
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+  }
+
+  100% {
+    opacity: 1;
+    border-color: rgba(239, 68, 68, 0.3);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
+  }
+}
+
+.news-urgent {
+  animation: flash-urgent 2s ease-in-out infinite;
+}
+
 /* ──── Device Responsive Adjustments ──── */
 @media (max-width: 768px) {
   body {

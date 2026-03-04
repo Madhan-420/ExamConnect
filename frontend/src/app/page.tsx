@@ -9,19 +9,6 @@ import { GraduationCap, Shield, BookOpen, BarChart3, ArrowRight, Sparkles } from
 export default function HomePage() {
   const { profile } = useAuth();
 
-  const [particles, setParticles] = React.useState<any[]>([]);
-
-  // Generate particles only on the client to prevent SSR hydration mismatches
-  React.useEffect(() => {
-    setParticles(Array.from({ length: 20 }, (_, i) => ({
-      id: i,
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      size: Math.random() * 4 + 2,
-      duration: Math.random() * 10 + 10,
-      delay: Math.random() * 5,
-    })));
-  }, []);
 
   const dashboardLink = profile
     ? `/${profile.role}/dashboard`
@@ -29,47 +16,6 @@ export default function HomePage() {
 
   return (
     <div style={{ minHeight: '100vh', position: 'relative', overflow: 'hidden' }}>
-      {/* Background Particles */}
-      {particles.map((p) => (
-        <motion.div
-          key={p.id}
-          animate={{
-            y: [0, -30, 0],
-            opacity: [0.2, 0.5, 0.2],
-          }}
-          transition={{
-            duration: p.duration,
-            delay: p.delay,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-          style={{
-            position: 'absolute',
-            left: `${p.x}%`,
-            top: `${p.y}%`,
-            width: p.size,
-            height: p.size,
-            borderRadius: '50%',
-            background: 'var(--accent-purple)',
-            filter: 'blur(1px)',
-            pointerEvents: 'none',
-          }}
-        />
-      ))}
-
-      {/* Glow Orbs */}
-      <div style={{
-        position: 'absolute', top: '-20%', right: '-10%',
-        width: 600, height: 600, borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(139,92,246,0.12) 0%, transparent 70%)',
-        pointerEvents: 'none',
-      }} />
-      <div style={{
-        position: 'absolute', bottom: '-20%', left: '-10%',
-        width: 500, height: 500, borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(59,130,246,0.1) 0%, transparent 70%)',
-        pointerEvents: 'none',
-      }} />
 
       {/* Navbar */}
       <nav style={{

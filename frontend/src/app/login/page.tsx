@@ -33,45 +33,12 @@ export default function LoginPage() {
         }
     };
 
-    const [particles, setParticles] = useState<any[]>([]);
-
-    React.useEffect(() => {
-        setParticles(Array.from({ length: 15 }, (_, i) => ({
-            id: i,
-            x: Math.random() * 100,
-            y: Math.random() * 100,
-            size: Math.random() * 3 + 2,
-            duration: Math.random() * 8 + 8,
-            delay: Math.random() * 3,
-        })));
-    }, []);
 
     return (
         <div style={{
             minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
             position: 'relative', overflow: 'hidden', padding: 20,
         }}>
-            {/* Background particles */}
-            {particles.map((p) => (
-                <motion.div
-                    key={p.id}
-                    animate={{ y: [0, -25, 0], opacity: [0.15, 0.4, 0.15] }}
-                    transition={{ duration: p.duration, delay: p.delay, repeat: Infinity, ease: 'easeInOut' }}
-                    style={{
-                        position: 'absolute', left: `${p.x}%`, top: `${p.y}%`,
-                        width: p.size, height: p.size, borderRadius: '50%',
-                        background: 'var(--accent-purple)', filter: 'blur(1px)', pointerEvents: 'none',
-                    }}
-                />
-            ))}
-
-            {/* Glow */}
-            <div style={{
-                position: 'absolute', top: '-30%', right: '-20%',
-                width: 600, height: 600, borderRadius: '50%',
-                background: 'radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 70%)',
-                pointerEvents: 'none',
-            }} />
 
             <motion.div
                 initial={{ opacity: 0, y: 30, scale: 0.95 }}
