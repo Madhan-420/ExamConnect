@@ -333,35 +333,103 @@ function AvatarWrapper({ theme }: { theme: 'male' | 'female' | 'default' }) {
     );
 }
 
-function LunarMoon({ color }: { color: string }) {
-    const moonRef = useRef<THREE.Mesh>(null);
+function LunarEclipse({ color }: { color: string }) {
+    const groupRef = useRef<THREE.Group>(null);
+    const coronaRef = useRef<THREE.Mesh>(null);
+    const raysRef = useRef<THREE.Mesh>(null);
+    const ringRef = useRef<THREE.Mesh>(null);
+
     useFrame((state) => {
-        if (!moonRef.current) return;
-        moonRef.current.rotation.y = state.clock.elapsedTime * 0.05;
-        moonRef.current.rotation.z = state.clock.elapsedTime * 0.02;
+        const t = state.clock.elapsedTime;
+        if (groupRef.current) {
+            groupRef.current.rotation.y = t * 0.02;
+            groupRef.current.position.y = 6 + Math.sin(t * 0.3) * 0.3;
+        }
+        if (coronaRef.current) {
+            // Pulsing corona
+            const scale = 1 + Math.sin(t * 1.5) * 0.03;
+            coronaRef.current.scale.set(scale, scale, scale);
+        }
+        if (raysRef.current) {
+            raysRef.current.rotation.z = t * 0.1;
+            const rayScale = 1 + Math.sin(t * 2) * 0.05;
+            raysRef.current.scale.set(rayScale, rayScale, 1);
+        }
+        if (ringRef.current) {
+            ringRef.current.rotation.x = Math.PI / 2.5 + Math.sin(t * 0.5) * 0.1;
+            ringRef.current.rotation.z = t * 0.15;
+        }
     });
 
     return (
-        <group>
-            <Float speed={0.5} rotationIntensity={0.1} floatIntensity={0.5}>
-                {/* The Moon */}
-                <mesh ref={moonRef} position={[12, 8, -25]}>
-                    <sphereGeometry args={[8, 64, 64]} />
-                    <meshStandardMaterial
-                        color="#2a2a35"
-                        emissive={color}
-                        emissiveIntensity={0.15}
-                        roughness={0.8}
-                        metalness={0.2}
-                    />
-                </mesh>
+        <group ref={groupRef} position={[10, 6, -22]}>
+            {/* Outermost soft glow haze */}
+            <mesh>
+                <sphereGeometry args={[5.5, 32, 32]} />
+                <meshBasicMaterial color={color} transparent opacity={0.06} blending={THREE.AdditiveBlending} />
+            </mesh>
 
-                {/* Moon Glow Aura */}
-                <mesh position={[12, 8, -26]}>
-                    <sphereGeometry args={[9.5, 32, 32]} />
-                    <meshBasicMaterial color={color} transparent opacity={0.15} blending={THREE.AdditiveBlending} />
-                </mesh>
-            </Float>
+            {/* Corona glow — the bright rim behind the eclipsed moon */}
+            <mesh ref={coronaRef}>
+                <sphereGeometry args={[4.2, 64, 64]} />
+                <meshBasicMaterial color={color} transparent opacity={0.35} blending={THREE.AdditiveBlending} />
+            </mesh>
+
+            {/* The dark Moon body — the eclipsing sphere */}
+            <mesh>
+                <sphereGeometry args={[3.5, 64, 64]} />
+                <meshStandardMaterial
+                    color="#0a0a0f"
+                    roughness={1}
+                    metalness={0}
+                />
+            </mesh>
+
+            {/* Subtle surface detail on the moon — slight emissive for depth */}
+            <mesh>
+                <sphereGeometry args={[3.52, 64, 64]} />
+                <meshStandardMaterial
+                    color="#111118"
+                    emissive={color}
+                    emissiveIntensity={0.03}
+                    roughness={0.9}
+                    metalness={0.1}
+                    transparent
+                    opacity={0.5}
+                />
+            </mesh>
+
+            {/* Light rays bursting from behind — the "diamond ring" effect */}
+            <mesh ref={raysRef} position={[0, 0, -0.5]}>
+                <ringGeometry args={[3.6, 6.5, 64]} />
+                <meshBasicMaterial
+                    color={color}
+                    transparent
+                    opacity={0.12}
+                    blending={THREE.AdditiveBlending}
+                    side={THREE.DoubleSide}
+                />
+            </mesh>
+
+            {/* Orbiting debris ring */}
+            <mesh ref={ringRef} rotation={[Math.PI / 2.5, 0, 0]}>
+                <torusGeometry args={[5, 0.02, 16, 100]} />
+                <meshStandardMaterial
+                    color={color}
+                    emissive={color}
+                    emissiveIntensity={1.5}
+                    toneMapped={false}
+                />
+            </mesh>
+
+            {/* Second subtle ring */}
+            <mesh rotation={[Math.PI / 3, 0.3, 0]}>
+                <torusGeometry args={[5.5, 0.015, 16, 100]} />
+                <meshBasicMaterial color={color} transparent opacity={0.25} blending={THREE.AdditiveBlending} />
+            </mesh>
+
+            {/* Point light behind the moon to cast the corona effect */}
+            <pointLight position={[0, 0, -2]} intensity={3} color={color} distance={20} decay={2} />
         </group>
     );
 }
@@ -414,7 +482,7 @@ export default function Background3D() {
                     {role === 'guest' && <GuestEnvironment />}
 
                     <AvatarWrapper theme={theme} />
-                    <LunarMoon color={spotLightColor} />
+                    <LunarEclipse color={spotLightColor} />
                 </Suspense>
             </Canvas>
         </div>
